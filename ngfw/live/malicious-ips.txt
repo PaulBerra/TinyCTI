@@ -1,0 +1,5 @@
+# TinyCTI NGFW Export - 2025-06-27T21:37:05.198339
+# Bucket: live - Type: ipv4
+# Format: One IOC per line
+162.243.103.246
+# Total IOCs: 1

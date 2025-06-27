@@ -1,0 +1,11 @@
+# pfSense Aliases - TinyCTI Export
+# Generated: 2025-06-27T21:37:07.233539
+
+# Malicious IPs Alias
+malicious_ips = {
+    162.243.103.246,
+}
+
+# Malicious Domains Alias
+malicious_domains = {
+}
