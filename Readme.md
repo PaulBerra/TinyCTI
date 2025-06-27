@@ -3,8 +3,8 @@
 A tiny and efficient CTI Framework
 
 
-[27/06/2025 - This project is under very active development, and it is currently possible to encounter errors. The TinyCTI project is still in beta and has been opened for feedback. Please take this into account.
-Don't hesitate to suggest corrections via pull requests.]
+**[27/06/2025 - This project is under very active development, and it is currently possible to encounter errors. The TinyCTI project is still in beta and has been opened for feedback. Please take this into account.
+Don't hesitate to suggest corrections via pull requests.]**
 
 ##  Monitoring et Logs
 
