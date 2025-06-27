@@ -48,7 +48,9 @@ Le daemon affiche périodiquement ses statistiques :
 
 - **Uptime** : Temps de fonctionnement depuis le démarrage
 - **Exécutions totales** : Nombre de collectes effectuées
-- **Taux de réussite# TinyCTI - Framework Modulaire Léger de Collecte d'IOCs
+- **Taux de réussite
+
+# TinyCTI - Framework Modulaire Léger de Collecte d'IOCs
 
 TinyCTI est un framework modulaire et léger pour collecter des indicateurs de compromission (IOCs) depuis différentes sources et les organiser par type et niveau de rétention. Conçu pour être simple d'utilisation tout en offrant une architecture robuste et extensible.
 
