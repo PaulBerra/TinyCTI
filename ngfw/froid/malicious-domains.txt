@@ -1,4 +1,0 @@
-# TinyCTI NGFW Export - 2025-06-27T21:37:07.231066
-# Bucket: froid - Type: domain
-# Format: One IOC per line
-# Total IOCs: 0
