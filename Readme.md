@@ -48,7 +48,6 @@ Le daemon affiche périodiquement ses statistiques :
 
 - **Uptime** : Temps de fonctionnement depuis le démarrage
 - **Exécutions totales** : Nombre de collectes effectuées
-- **Taux de réussite
 
 # TinyCTI - Framework Modulaire Léger de Collecte d'IOCs
 
