@@ -13,32 +13,32 @@
 
 TinyCTI is a lightweight, modular framework for collecting and managing Cyber Threat Intelligence (CTI) indicators. It automatically fetches IOCs (Indicators of Compromise) from various sources, classifies them, and exports them in multiple formats for integration with security tools.
 
-### ✨ Key Features
+###  Key Features
 
-**🏗️ Three-Component Architecture:**
-- **🌐 External API Client**: Secure IOC collection from third-party APIs with SSL/TLS and advanced auth
-- **📁 Internal File API**: Direct .txt file exposure by bucket for system integration  
-- **🎛️ Web Management Interface**: Graphical service management and monitoring
+** Three-Component Architecture:**
+- ** External API Client**: Secure IOC collection from third-party APIs with SSL/TLS and advanced auth
+- ** Internal File API**: Direct .txt file exposure by bucket for system integration  
+- ** Web Management Interface**: Graphical service management and monitoring
 
-**🔄 Advanced Collection:**
+** Advanced Collection:**
 - **Multi-source Support**: Text, CSV, JSON, STIX, RSS, and TAXII feeds
 - **Enterprise SSL/TLS**: Client certificates, custom CA bundles, production-grade security
 - **Advanced Authentication**: Basic, Bearer tokens, API keys, OAuth2 for external APIs
 - **Smart Classification**: Automatic IOC type detection with private IP filtering
 
-**📦 Intelligent Storage:**
+** Intelligent Storage:**
 - **Four-tier Retention**: live, chaud, tiede, froid buckets with automatic transitions
 - **Atomic Operations**: Race condition protection and data integrity guarantees
 - **Automatic Compression**: Gzip compression for aged buckets (non-live)
 - **Pure Raw Format**: Live bucket maintains IOC-only format for direct consumption
 
-**🔒 Production Security:**
+** Production Security:**
 - **SSL/TLS Everywhere**: Full certificate management and verification
 - **Multi-layer Auth**: Local users, SAML v2, OpenID Connect, and API tokens
 - **Rate Limiting**: Configurable limits for all endpoints
 - **Audit Logging**: Comprehensive security event tracking
 
-### 🚀 Quick Start
+###  Quick Start
 
 #### Installation
 
@@ -71,7 +71,7 @@ tinycti --help
 tinycti --daemon
 ```
 
-### 📖 Usage Examples
+###  Usage Examples
 
 #### Basic Collection
 ```bash
@@ -127,7 +127,7 @@ tinycti --export-ngfw
 # - malicious-domains.txt
 ```
 
-### 🛠️ Configuration
+###  Configuration
 
 The main configuration file is `config.yaml`. Key sections:
 
@@ -190,7 +190,7 @@ retention_policy:
 ./tools/generate-password
 ```
 
-### 🧪 Testing
+###  Testing
 
 TinyCTI includes a comprehensive test suite:
 
@@ -229,11 +229,11 @@ make test-coverage
 make setup-dev
 ```
 
-### 🏗️ Three-Component Architecture
+###  Three-Component Architecture
 
 TinyCTI implements a clean separation between three distinct systems:
 
-#### 1. 🌐 External API Client
+#### 1.  External API Client
 **Purpose**: Secure collection from third-party APIs
 ```yaml
 feeds:
@@ -249,7 +249,7 @@ feeds:
       header: "X-API-Key"
 ```
 
-#### 2. 📁 Internal File API  
+#### 2.  Internal File API  
 **Purpose**: Direct .txt file exposure by bucket
 ```yaml
 internal_api:
@@ -269,7 +269,7 @@ curl -H "Authorization: Bearer secure-token" \
 curl http://localhost:8080/bucket/live/stats
 ```
 
-#### 3. 🎛️ Web Management Interface
+#### 3.  Web Management Interface
 **Purpose**: Graphical administration and monitoring
 ```bash
 # Access web interface
@@ -279,7 +279,7 @@ http://localhost:5000/
 curl -X POST http://localhost:5000/api/feeds/toggle/feed_name
 ```
 
-### 📁 Project Structure
+###  Project Structure
 
 ```
 tinycti/
@@ -299,7 +299,7 @@ tinycti/
 └── requirements.txt        # Dependencies
 ```
 
-### 🔧 Development
+###  Development
 
 #### Prerequisites
 - Python 3.8+
@@ -332,7 +332,7 @@ make security
 4. Run the test suite
 5. Submit a pull request
 
-### 🔒 Security
+###  Security
 
 TinyCTI implements multiple security layers:
 
@@ -342,7 +342,7 @@ TinyCTI implements multiple security layers:
 - **Audit Logging**: All actions are logged for compliance
 - **Secure Defaults**: Security-first configuration defaults
 
-### 📄 License
+###  License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
@@ -354,19 +354,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 TinyCTI est un framework modulaire léger pour la collecte et la gestion d'indicateurs de Cyber Threat Intelligence (CTI). Il récupère automatiquement des IOCs (Indicateurs de Compromission) depuis diverses sources, les classifie et les exporte dans plusieurs formats pour l'intégration avec les outils de sécurité.
 
-### ✨ Fonctionnalités Principales
+###  Fonctionnalités Principales
 
-- **🔄 Collecte Multi-sources**: Support des flux texte, CSV, JSON, STIX, RSS et TAXII
-- **🧠 Classification Intelligente**: Détection automatique du type d'IOC (IPs, domaines, URLs, hashs, emails)
-- **📦 Gestion de Rétention**: Système à quatre niveaux (live, chaud, tiède, froid) avec transitions automatiques
-- **🔒 Authentification Enterprise**: Support utilisateurs locaux, SAML v2 et OpenID Connect
-- **🌐 API REST**: API complète avec export JSON/CSV/texte
-- **📊 Monitoring Temps Réel**: Dashboard web et logging complet
-- **🛡️ Intégration NGFW**: Export direct pour pfSense, iptables et autres firewalls
-- **⚡ Haute Performance**: Traitement parallèle et déduplication intelligente
-- **🔐 Sécurité d'Abord**: Rate limiting, audit logging et validation d'entrée
+- ** Collecte Multi-sources**: Support des flux texte, CSV, JSON, STIX, RSS et TAXII
+- ** Classification Intelligente**: Détection automatique du type d'IOC (IPs, domaines, URLs, hashs, emails)
+- ** Gestion de Rétention**: Système à quatre niveaux (live, chaud, tiède, froid) avec transitions automatiques
+- ** Authentification Enterprise**: Support utilisateurs locaux, SAML v2 et OpenID Connect
+- ** API REST**: API complète avec export JSON/CSV/texte
+- ** Monitoring Temps Réel**: Dashboard web et logging complet
+- ** Intégration NGFW**: Export direct pour pfSense, iptables et autres firewalls
+- ** Haute Performance**: Traitement parallèle et déduplication intelligente
+- ** Sécurité d'Abord**: Rate limiting, audit logging et validation d'entrée
 
-### 🚀 Démarrage Rapide
+###  Démarrage Rapide
 
 #### Installation
 
@@ -388,7 +388,7 @@ python3 tinycti.py
 python3 tinycti.py --daemon --api
 ```
 
-### 📖 Exemples d'Utilisation
+###  Exemples d'Utilisation
 
 #### Collecte de Base
 ```bash
@@ -432,7 +432,7 @@ curl http://localhost:5000/api/export/csv/domain
 curl http://localhost:5000/api/status
 ```
 
-### 🧪 Tests
+###  Tests
 
 TinyCTI inclut une suite de tests complète :
 
@@ -471,7 +471,7 @@ make test-coverage
 make setup-dev
 ```
 
-### 📁 Logique des Buckets et Intégrité
+###  Logique des Buckets et Intégrité
 
 TinyCTI utilise un système de rétention à quatre niveaux avec fiabilité renforcée :
 
@@ -481,14 +481,14 @@ TinyCTI utilise un système de rétention à quatre niveaux avec fiabilité renf
 - **froid** : IOCs froids (30j+ d'âge) avec compression automatique
 
 **Fonctionnalités Clés :**
-- ✅ **Opérations atomiques** préviennent la corruption des données
-- ✅ **Compression automatique** pour buckets non-live
-- ✅ **Protection race conditions** avec verrouillage de fichiers
-- ✅ **Cohérence base-fichiers** avec mises à jour transactionnelles
-- ✅ **Format brut pur** pour bucket live (pas de commentaires/headers)
-- ✅ **Déduplication intelligente** avec hiérarchie de priorité des buckets
+-  **Opérations atomiques** préviennent la corruption des données
+-  **Compression automatique** pour buckets non-live
+-  **Protection race conditions** avec verrouillage de fichiers
+-  **Cohérence base-fichiers** avec mises à jour transactionnelles
+-  **Format brut pur** pour bucket live (pas de commentaires/headers)
+-  **Déduplication intelligente** avec hiérarchie de priorité des buckets
 
-### 🔧 Développement
+###  Développement
 
 #### Prérequis
 - Python 3.8+
@@ -514,7 +514,7 @@ make format
 make security
 ```
 
-### 📄 Licence
+###  Licence
 
 Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour les détails.
 
