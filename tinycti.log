@@ -27816,3 +27816,807 @@
 2025-06-27 21:37:07,235 - __main__.NGFWExporter - INFO - Alias pfSense g�n�r�s: ngfw\live\pfsense-aliases.txt
 2025-06-27 21:37:07,237 - __main__.NGFWExporter - INFO - R�gles iptables g�n�r�es: ngfw\live\iptables-rules.sh
 2025-06-27 21:37:07,237 - __main__.TinyCTI - INFO - Export automatique NGFW termin�
+2025-06-27 17:12:06,281 - __main__.PluginManager - INFO - Plugins enregistrés: ['text', 'csv', 'json', 'stix', 'rss', 'taxii']
+2025-06-27 17:12:06,302 - __main__.ConfigLoader - INFO - Configuration chargée: 4 flux définis
+2025-06-27 17:12:06,308 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-27 17:12:06,311 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-27 17:12:06,312 - __main__.TinyCTI - INFO - ==================================================
+2025-06-27 17:12:06,312 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-27 17:12:06,312 - __main__.TinyCTI - INFO - ==================================================
+2025-06-27 17:12:06,312 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-27 17:12:06,312 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-27 17:12:06,312 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_URLs
+2025-06-27 17:12:06,312 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-27 17:12:06,588 - __main__.TinyCTI - DEBUG - Collecté 3326063 octets depuis URLhaus_URLs
+2025-06-27 17:12:06,588 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_URLs
+2025-06-27 17:12:06,594 - __main__.Plugin.URLhaus_URLs - DEBUG - Traitement de 79714 lignes
+2025-06-27 17:12:07,253 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 79704 IOCs depuis URLhaus_URLs
+2025-06-27 17:12:07,255 - __main__.TinyCTI - INFO - Extrait 79704 IOCs depuis URLhaus_URLs
+2025-06-27 17:12:08,559 - __main__.IOCStorage - DEBUG - Écrit 79704 IOCs dans iocs/live/url.txt
+2025-06-27 17:12:08,561 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 2.25s: 79704 nouveaux IOCs, 0 doublons, 0 erreurs
+2025-06-27 17:12:08,567 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-27 17:12:08,568 - __main__.TinyCTI - DEBUG - Collecte des données depuis Feodo_IPs
+2025-06-27 17:12:08,568 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-27 17:12:08,697 - __main__.TinyCTI - DEBUG - Collecté 506 octets depuis Feodo_IPs
+2025-06-27 17:12:08,698 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis Feodo_IPs
+2025-06-27 17:12:08,698 - __main__.Plugin.Feodo_IPs - DEBUG - Traitement de 11 lignes
+2025-06-27 17:12:08,698 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-27 17:12:08,698 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-27 17:12:08,705 - __main__.IOCStorage - DEBUG - Écrit 1 IOCs dans iocs/live/ipv4.txt
+2025-06-27 17:12:08,705 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.14s: 1 nouveaux IOCs, 0 doublons, 0 erreurs
+2025-06-27 17:12:08,706 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-27 17:12:08,706 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_CSV
+2025-06-27 17:12:08,706 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-27 17:12:09,380 - chardet.charsetprober - DEBUG - CP932 Japanese prober hit error at byte 19
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - EUC-JP Japanese prober hit error at byte 13
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - GB2312 Chinese prober hit error at byte 25
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - EUC-KR Korean prober hit error at byte 13
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - CP949 Korean prober hit error at byte 13
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - Big5 Chinese prober hit error at byte 22
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - EUC-TW Taiwan prober hit error at byte 13
+2025-06-27 17:12:09,382 - chardet.charsetprober - DEBUG - Johab Korean prober hit error at byte 15
+2025-06-27 17:12:14,972 - chardet.charsetprober - DEBUG - windows-1251 Russian confidence = 0.058999623766406675
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - KOI8-R Russian confidence = 0.051126518293434016
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-5 Russian confidence = 0.05612449509545732
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - MacCyrillic Russian confidence = 0.061524390454637666
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - IBM866 Russian confidence = 0.05415174813553908
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - IBM855 Russian confidence = 0.05271575590293364
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-7 Greek confidence = 0.09658453872953653
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - windows-1253 Greek confidence = 0.09828771621478916
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-5 Bulgarian confidence = 0.05532126587959139
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - windows-1251 Bulgarian confidence = 0.05759364991824893
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - TIS-620 Thai confidence = 0.05763788965104476
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-9 Turkish confidence = 0.05381250459060101
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.0
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.061173417811665416
+2025-06-27 17:12:14,973 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.061100350871444074
+2025-06-27 17:12:14,973 - chardet.universaldetector - DEBUG - no probers hit minimum threshold
+2025-06-27 17:12:14,973 - chardet.universaldetector - DEBUG - utf-8  confidence = 0.010000000000000009
+2025-06-27 17:12:14,974 - chardet.universaldetector - DEBUG - CP932 Japanese confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - EUC-JP Japanese confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - GB2312 Chinese confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - EUC-KR Korean confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - CP949 Korean confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - Big5 Chinese confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - EUC-TW Taiwan confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - Johab Korean confidence = 0.01
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - windows-1251 Russian confidence = 0.058999623766406675
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - KOI8-R Russian confidence = 0.051126518293434016
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - ISO-8859-5 Russian confidence = 0.05612449509545732
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - MacCyrillic Russian confidence = 0.061524390454637666
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - IBM866 Russian confidence = 0.05415174813553908
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - IBM855 Russian confidence = 0.05271575590293364
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - ISO-8859-7 Greek confidence = 0.09658453872953653
+2025-06-27 17:12:14,975 - chardet.universaldetector - DEBUG - windows-1253 Greek confidence = 0.09828771621478916
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - ISO-8859-5 Bulgarian confidence = 0.05532126587959139
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - windows-1251 Bulgarian confidence = 0.05759364991824893
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - TIS-620 Thai confidence = 0.05763788965104476
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - ISO-8859-9 Turkish confidence = 0.05381250459060101
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.0
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.061173417811665416
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.061100350871444074
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - ISO-8859-1  confidence = 0.01
+2025-06-27 17:12:14,976 - chardet.universaldetector - DEBUG - MacRoman  confidence = 0.0
+2025-06-27 17:12:14,995 - __main__.TinyCTI - DEBUG - Collecté 2052517 octets depuis URLhaus_CSV
+2025-06-27 17:12:14,996 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_CSV
+2025-06-27 17:12:15,008 - __main__.Plugin.URLhaus_CSV - DEBUG - En-têtes CSV détectés: ['PK\x03\x04\x14\x00\x00\x00\x08\x00���Z-�ࡔ\x02!\x00���\x00\x07\x00']
+2025-06-27 17:12:15,008 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-27 17:12:15,008 - __main__.Plugin.URLhaus_CSV - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-27 17:12:15,008 - __main__.Plugin.URLhaus_CSV - DEBUG -   Colonne 0: 'PK    ���Z-�ࡔ! ���  '
+2025-06-27 17:12:15,008 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse des colonnes - Min: 1, Max: 2, Moyenne: 1.2
+2025-06-27 17:12:15,008 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00���Z-�ࡔ\x02!\x00���\x00\x07\x00']
+2025-06-27 17:12:15,008 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00���Z-�ࡔ\x02!\x00���\x00\x07\x00']
+2025-06-27 17:12:15,013 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-27 17:12:15,014 - __main__.TinyCTI - DEBUG - Collecte des données depuis MalwareBazaar_Hashes
+2025-06-27 17:12:15,014 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-27 17:12:15,205 - __main__.TinyCTI - DEBUG - Collecté 425632 octets depuis MalwareBazaar_Hashes
+2025-06-27 17:12:15,206 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis MalwareBazaar_Hashes
+2025-06-27 17:12:15,206 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - En-têtes CSV détectés: ['################################################################']
+2025-06-27 17:12:15,206 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-27 17:12:15,206 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-27 17:12:15,206 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG -   Colonne 0: '################################################################'
+2025-06-27 17:12:15,207 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse des colonnes - Min: 1, Max: 1, Moyenne: 1.0
+2025-06-27 17:12:15,207 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-27 17:12:15,207 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-27 17:12:15,207 - __main__.TinyCTI - INFO - ==================================================
+2025-06-27 17:12:15,207 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - ==================================================
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Durée totale: 8.90 secondes
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - IOCs totaux traités: 79705
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 79705
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-27 17:12:15,208 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-27 17:12:15,210 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv4.txt -> ngfw/live/malicious-ips.txt
+2025-06-27 17:12:15,210 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv6.txt -> ngfw/live/malicious-ipv6.txt
+2025-06-27 17:12:15,210 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/domain.txt -> ngfw/live/malicious-domains.txt
+2025-06-27 17:12:15,242 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/url.txt -> ngfw/live/malicious-urls.txt
+2025-06-27 17:12:15,243 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv4.txt -> ngfw/chaud/malicious-ips.txt
+2025-06-27 17:12:15,243 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv6.txt -> ngfw/chaud/malicious-ipv6.txt
+2025-06-27 17:12:15,244 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/domain.txt -> ngfw/chaud/malicious-domains.txt
+2025-06-27 17:12:15,245 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/url.txt -> ngfw/chaud/malicious-urls.txt
+2025-06-27 17:12:15,246 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv4.txt -> ngfw/tiede/malicious-ips.txt
+2025-06-27 17:12:15,246 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv6.txt -> ngfw/tiede/malicious-ipv6.txt
+2025-06-27 17:12:15,246 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/domain.txt -> ngfw/tiede/malicious-domains.txt
+2025-06-27 17:12:15,247 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/url.txt -> ngfw/tiede/malicious-urls.txt
+2025-06-27 17:12:15,248 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv4.txt -> ngfw/froid/malicious-ips.txt
+2025-06-27 17:12:15,249 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv6.txt -> ngfw/froid/malicious-ipv6.txt
+2025-06-27 17:12:15,249 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/domain.txt -> ngfw/froid/malicious-domains.txt
+2025-06-27 17:12:15,250 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/url.txt -> ngfw/froid/malicious-urls.txt
+2025-06-27 17:12:15,250 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-27 17:12:15,250 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-27 17:12:15,250 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-27 17:12:15,250 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-27 17:18:48,524 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:18:48] "GET / HTTP/1.1" 200 -
+2025-06-27 17:18:48,586 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:18:48] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-06-27 17:19:49,417 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:19:49] "GET / HTTP/1.1" 200 -
+2025-06-27 17:19:49,443 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:19:49] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-06-27 17:19:50,507 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:19:50] "GET / HTTP/1.1" 200 -
+2025-06-27 17:19:54,103 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:19:54] "GET / HTTP/1.1" 200 -
+2025-06-27 17:19:57,794 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:19:57] "GET /feeds HTTP/1.1" 200 -
+2025-06-27 17:19:57,827 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:19:57] "GET /api/feeds HTTP/1.1" 200 -
+2025-06-27 17:20:10,535 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:10] "POST /api/feeds/Feodo_IPs/toggle HTTP/1.1" 200 -
+2025-06-27 17:20:12,058 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:12] "GET /api/feeds HTTP/1.1" 200 -
+2025-06-27 17:20:13,450 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:13] "POST /api/feeds/Feodo_IPs/toggle HTTP/1.1" 200 -
+2025-06-27 17:20:15,499 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:15] "GET /api/feeds HTTP/1.1" 200 -
+2025-06-27 17:20:17,180 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:17] "GET / HTTP/1.1" 200 -
+2025-06-27 17:20:23,551 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:23] "GET /iocs HTTP/1.1" 200 -
+2025-06-27 17:20:29,884 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:29] "GET /api/iocs/domain?bucket=live&limit=500 HTTP/1.1" 200 -
+2025-06-27 17:20:36,315 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:36] "GET /api/iocs/url?bucket=live&limit=500 HTTP/1.1" 200 -
+2025-06-27 17:20:45,962 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:20:45] "GET /api/iocs/url?bucket=live&limit=500 HTTP/1.1" 200 -
+2025-06-27 17:21:24,152 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:21:24] "GET /api/iocs/url?bucket=chaud&limit=500 HTTP/1.1" 200 -
+2025-06-27 17:21:26,292 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:21:26] "GET /api/iocs/url?bucket=live&limit=500 HTTP/1.1" 200 -
+2025-06-27 17:21:34,605 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:21:34] "GET /api/iocs/search?q=5f3c9c1051f4 HTTP/1.1" 200 -
+2025-06-27 17:21:41,547 - werkzeug - INFO - 192.168.101.18 - - [27/Jun/2025 17:21:41] "GET / HTTP/1.1" 200 -
+2025-06-29 13:58:04,642 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 13:58:09,453 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 13:58:09,589 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 13:58:18,077 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: this function got an unexpected keyword argument 'encoding'
+2025-06-29 13:58:18,082 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: this function got an unexpected keyword argument 'encoding'
+2025-06-29 13:58:18,085 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 13:58:18,262 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: this function got an unexpected keyword argument 'encoding'
+2025-06-29 13:58:18,262 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: this function got an unexpected keyword argument 'encoding'
+2025-06-29 14:01:12,579 - __main__.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 14:01:12,580 - __main__.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 14:01:12,581 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 14:01:12,590 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 14:01:12,591 - __main__.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 14:01:12,591 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 14:05:36
+2025-06-29 14:01:12,592 - __main__.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 14:04:20
+2025-06-29 14:01:12,592 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 14:05:59
+2025-06-29 14:01:12,593 - __main__.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 14:03:48
+2025-06-29 14:01:12,594 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:01:12,594 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-29 14:01:12,594 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:01:12,595 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-29 14:01:12,595 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-29 14:01:12,595 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_URLs
+2025-06-29 14:01:12,596 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 14:01:12,810 - __main__.TinyCTI - DEBUG - Collecté 3277514 octets depuis URLhaus_URLs
+2025-06-29 14:01:12,811 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_URLs
+2025-06-29 14:01:12,821 - __main__.Plugin.URLhaus_URLs - DEBUG - Traitement de 78348 lignes
+2025-06-29 14:01:13,696 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 78338 IOCs depuis URLhaus_URLs
+2025-06-29 14:01:13,699 - __main__.TinyCTI - INFO - Extrait 78338 IOCs depuis URLhaus_URLs
+2025-06-29 14:01:15,804 - __main__.IOCStorage - DEBUG - Écrit 78338 IOCs dans iocs/live/url.txt
+2025-06-29 14:01:15,807 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 3.21s: 78338 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 3277514, 'iocs_extracted': 78338, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 14:01:15,815 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-29 14:01:15,815 - __main__.TinyCTI - DEBUG - Collecte des données depuis Feodo_IPs
+2025-06-29 14:01:15,816 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 14:01:15,944 - __main__.TinyCTI - DEBUG - Collecté 506 octets depuis Feodo_IPs
+2025-06-29 14:01:15,945 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis Feodo_IPs
+2025-06-29 14:01:15,945 - __main__.Plugin.Feodo_IPs - DEBUG - Traitement de 11 lignes
+2025-06-29 14:01:15,945 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 14:01:15,945 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 14:01:15,956 - __main__.IOCStorage - DEBUG - Écrit 1 IOCs dans iocs/live/ipv4.txt
+2025-06-29 14:01:15,957 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.14s: 1 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 506, 'iocs_extracted': 1, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 14:01:15,958 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-29 14:01:15,958 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_CSV
+2025-06-29 14:01:15,958 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 14:01:16,716 - chardet.charsetprober - DEBUG - SHIFT_JIS Japanese prober hit error at byte 57
+2025-06-29 14:01:16,716 - chardet.charsetprober - DEBUG - EUC-JP Japanese prober hit error at byte 11
+2025-06-29 14:01:16,716 - chardet.charsetprober - DEBUG - GB2312 Chinese prober hit error at byte 57
+2025-06-29 14:01:16,716 - chardet.charsetprober - DEBUG - EUC-KR Korean prober hit error at byte 11
+2025-06-29 14:01:16,717 - chardet.charsetprober - DEBUG - CP949 Korean prober hit error at byte 11
+2025-06-29 14:01:16,717 - chardet.charsetprober - DEBUG - Big5 Chinese prober hit error at byte 57
+2025-06-29 14:01:16,717 - chardet.charsetprober - DEBUG - EUC-TW Taiwan prober hit error at byte 11
+2025-06-29 14:01:16,717 - chardet.charsetprober - DEBUG - Johab Korean prober hit error at byte 11
+2025-06-29 14:01:24,046 - chardet.charsetprober - DEBUG - windows-1251 Russian confidence = 0.05942410825070969
+2025-06-29 14:01:24,047 - chardet.charsetprober - DEBUG - KOI8-R Russian confidence = 0.05108922658037699
+2025-06-29 14:01:24,047 - chardet.charsetprober - DEBUG - ISO-8859-5 Russian confidence = 0.05589203542852575
+2025-06-29 14:01:24,047 - chardet.charsetprober - DEBUG - MacCyrillic Russian confidence = 0.06175685323550248
+2025-06-29 14:01:24,047 - chardet.charsetprober - DEBUG - IBM866 Russian confidence = 0.05490148326188927
+2025-06-29 14:01:24,048 - chardet.charsetprober - DEBUG - IBM855 Russian confidence = 0.053005316229534506
+2025-06-29 14:01:24,048 - chardet.charsetprober - DEBUG - ISO-8859-7 Greek confidence = 0.09673851211872415
+2025-06-29 14:01:24,048 - chardet.charsetprober - DEBUG - windows-1253 Greek confidence = 0.09847833700109218
+2025-06-29 14:01:24,048 - chardet.charsetprober - DEBUG - ISO-8859-5 Bulgarian confidence = 0.055163822719071616
+2025-06-29 14:01:24,049 - chardet.charsetprober - DEBUG - windows-1251 Bulgarian confidence = 0.05831902834946411
+2025-06-29 14:01:24,049 - chardet.charsetprober - DEBUG - TIS-620 Thai confidence = 0.05738691482038325
+2025-06-29 14:01:24,049 - chardet.charsetprober - DEBUG - ISO-8859-9 Turkish confidence = 0.05297996714688437
+2025-06-29 14:01:24,051 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.0
+2025-06-29 14:01:24,052 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.06198196523623318
+2025-06-29 14:01:24,053 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.06158471160849851
+2025-06-29 14:01:24,054 - chardet.universaldetector - DEBUG - no probers hit minimum threshold
+2025-06-29 14:01:24,054 - chardet.universaldetector - DEBUG - utf-8  confidence = 0.010000000000000009
+2025-06-29 14:01:24,054 - chardet.universaldetector - DEBUG - SHIFT_JIS Japanese confidence = 0.01
+2025-06-29 14:01:24,054 - chardet.universaldetector - DEBUG - EUC-JP Japanese confidence = 0.01
+2025-06-29 14:01:24,055 - chardet.universaldetector - DEBUG - GB2312 Chinese confidence = 0.01
+2025-06-29 14:01:24,055 - chardet.universaldetector - DEBUG - EUC-KR Korean confidence = 0.01
+2025-06-29 14:01:24,055 - chardet.universaldetector - DEBUG - CP949 Korean confidence = 0.01
+2025-06-29 14:01:24,055 - chardet.universaldetector - DEBUG - Big5 Chinese confidence = 0.01
+2025-06-29 14:01:24,056 - chardet.universaldetector - DEBUG - EUC-TW Taiwan confidence = 0.01
+2025-06-29 14:01:24,056 - chardet.universaldetector - DEBUG - Johab Korean confidence = 0.01
+2025-06-29 14:01:24,057 - chardet.universaldetector - DEBUG - windows-1251 Russian confidence = 0.05942410825070969
+2025-06-29 14:01:24,058 - chardet.universaldetector - DEBUG - KOI8-R Russian confidence = 0.05108922658037699
+2025-06-29 14:01:24,058 - chardet.universaldetector - DEBUG - ISO-8859-5 Russian confidence = 0.05589203542852575
+2025-06-29 14:01:24,058 - chardet.universaldetector - DEBUG - MacCyrillic Russian confidence = 0.06175685323550248
+2025-06-29 14:01:24,058 - chardet.universaldetector - DEBUG - IBM866 Russian confidence = 0.05490148326188927
+2025-06-29 14:01:24,058 - chardet.universaldetector - DEBUG - IBM855 Russian confidence = 0.053005316229534506
+2025-06-29 14:01:24,058 - chardet.universaldetector - DEBUG - ISO-8859-7 Greek confidence = 0.09673851211872415
+2025-06-29 14:01:24,059 - chardet.universaldetector - DEBUG - windows-1253 Greek confidence = 0.09847833700109218
+2025-06-29 14:01:24,059 - chardet.universaldetector - DEBUG - ISO-8859-5 Bulgarian confidence = 0.055163822719071616
+2025-06-29 14:01:24,059 - chardet.universaldetector - DEBUG - windows-1251 Bulgarian confidence = 0.05831902834946411
+2025-06-29 14:01:24,059 - chardet.universaldetector - DEBUG - TIS-620 Thai confidence = 0.05738691482038325
+2025-06-29 14:01:24,059 - chardet.universaldetector - DEBUG - ISO-8859-9 Turkish confidence = 0.05297996714688437
+2025-06-29 14:01:24,059 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.0
+2025-06-29 14:01:24,060 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.06198196523623318
+2025-06-29 14:01:24,060 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.06158471160849851
+2025-06-29 14:01:24,060 - chardet.universaldetector - DEBUG - ISO-8859-1  confidence = 0.01
+2025-06-29 14:01:24,060 - chardet.universaldetector - DEBUG - MacRoman  confidence = 0.0
+2025-06-29 14:01:24,091 - __main__.TinyCTI - DEBUG - Collecté 2012180 octets depuis URLhaus_CSV
+2025-06-29 14:01:24,092 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_CSV
+2025-06-29 14:01:24,106 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: this function got an unexpected keyword argument 'encoding'
+2025-06-29 14:01:24,106 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: this function got an unexpected keyword argument 'encoding'
+2025-06-29 14:01:24,110 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-29 14:01:24,111 - __main__.TinyCTI - DEBUG - Collecte des données depuis MalwareBazaar_Hashes
+2025-06-29 14:01:24,112 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 14:01:24,267 - __main__.TinyCTI - DEBUG - Collecté 285698 octets depuis MalwareBazaar_Hashes
+2025-06-29 14:01:24,269 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis MalwareBazaar_Hashes
+2025-06-29 14:01:24,272 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: this function got an unexpected keyword argument 'encoding'
+2025-06-29 14:01:24,273 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: this function got an unexpected keyword argument 'encoding'
+2025-06-29 14:01:24,275 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:01:24,276 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-29 14:01:24,278 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:01:24,278 - __main__.TinyCTI - INFO - Durée totale: 11.68 secondes
+2025-06-29 14:01:24,278 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-29 14:01:24,279 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-29 14:01:24,279 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-29 14:01:24,280 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-29 14:01:24,280 - __main__.TinyCTI - INFO - IOCs totaux traités: 78339
+2025-06-29 14:01:24,281 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 78339
+2025-06-29 14:01:24,282 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-29 14:01:24,282 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-29 14:01:24,283 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-29 14:01:24,286 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv4.txt -> ngfw/live/malicious-ips.txt
+2025-06-29 14:01:24,289 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv6.txt -> ngfw/live/malicious-ipv6.txt
+2025-06-29 14:01:24,290 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/domain.txt -> ngfw/live/malicious-domains.txt
+2025-06-29 14:01:24,485 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/url.txt -> ngfw/live/malicious-urls.txt
+2025-06-29 14:01:24,487 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv4.txt -> ngfw/chaud/malicious-ips.txt
+2025-06-29 14:01:24,487 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv6.txt -> ngfw/chaud/malicious-ipv6.txt
+2025-06-29 14:01:24,488 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/domain.txt -> ngfw/chaud/malicious-domains.txt
+2025-06-29 14:01:24,488 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/url.txt -> ngfw/chaud/malicious-urls.txt
+2025-06-29 14:01:24,488 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv4.txt -> ngfw/tiede/malicious-ips.txt
+2025-06-29 14:01:24,489 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv6.txt -> ngfw/tiede/malicious-ipv6.txt
+2025-06-29 14:01:24,489 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/domain.txt -> ngfw/tiede/malicious-domains.txt
+2025-06-29 14:01:24,490 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/url.txt -> ngfw/tiede/malicious-urls.txt
+2025-06-29 14:01:24,490 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv4.txt -> ngfw/froid/malicious-ips.txt
+2025-06-29 14:01:24,490 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv6.txt -> ngfw/froid/malicious-ipv6.txt
+2025-06-29 14:01:24,491 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/domain.txt -> ngfw/froid/malicious-domains.txt
+2025-06-29 14:01:24,491 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/url.txt -> ngfw/froid/malicious-urls.txt
+2025-06-29 14:01:24,491 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-29 14:01:24,491 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-29 14:01:24,492 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-29 14:01:24,492 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-29 14:02:02,080 - __main__.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 14:02:02,081 - __main__.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 14:02:02,083 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 14:02:02,085 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 14:02:02,085 - __main__.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 14:02:02,086 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 14:04:44
+2025-06-29 14:02:02,086 - __main__.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 14:02:20
+2025-06-29 14:02:02,086 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 14:02:42
+2025-06-29 14:02:02,086 - __main__.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 14:06:09
+2025-06-29 14:02:02,086 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:02:02,087 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-29 14:02:02,087 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:02:02,087 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-29 14:02:02,087 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-29 14:02:02,088 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_URLs
+2025-06-29 14:02:02,088 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 14:02:02,313 - __main__.TinyCTI - DEBUG - Collecté 3277514 octets depuis URLhaus_URLs
+2025-06-29 14:02:02,313 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_URLs
+2025-06-29 14:02:02,325 - __main__.Plugin.URLhaus_URLs - DEBUG - Traitement de 78348 lignes
+2025-06-29 14:02:03,257 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 78338 IOCs depuis URLhaus_URLs
+2025-06-29 14:02:03,263 - __main__.TinyCTI - INFO - Extrait 78338 IOCs depuis URLhaus_URLs
+2025-06-29 14:02:04,982 - __main__.IOCStorage - DEBUG - Écrit 78338 IOCs dans iocs/live/url.txt
+2025-06-29 14:02:04,985 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 2.90s: 78338 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 3277514, 'iocs_extracted': 78338, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 14:02:04,995 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-29 14:02:04,996 - __main__.TinyCTI - DEBUG - Collecte des données depuis Feodo_IPs
+2025-06-29 14:02:04,996 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 14:02:05,100 - __main__.TinyCTI - DEBUG - Collecté 506 octets depuis Feodo_IPs
+2025-06-29 14:02:05,101 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis Feodo_IPs
+2025-06-29 14:02:05,101 - __main__.Plugin.Feodo_IPs - DEBUG - Traitement de 11 lignes
+2025-06-29 14:02:05,101 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 14:02:05,101 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 14:02:05,116 - __main__.IOCStorage - DEBUG - Écrit 1 IOCs dans iocs/live/ipv4.txt
+2025-06-29 14:02:05,116 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.12s: 1 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 506, 'iocs_extracted': 1, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 14:02:05,117 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-29 14:02:05,117 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_CSV
+2025-06-29 14:02:05,117 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 14:02:05,844 - chardet.charsetprober - DEBUG - SHIFT_JIS Japanese prober hit error at byte 16
+2025-06-29 14:02:05,846 - chardet.charsetprober - DEBUG - EUC-JP Japanese prober hit error at byte 11
+2025-06-29 14:02:05,850 - chardet.charsetprober - DEBUG - GB2312 Chinese prober hit error at byte 16
+2025-06-29 14:02:05,850 - chardet.charsetprober - DEBUG - EUC-KR Korean prober hit error at byte 11
+2025-06-29 14:02:05,850 - chardet.charsetprober - DEBUG - CP949 Korean prober hit error at byte 16
+2025-06-29 14:02:05,851 - chardet.charsetprober - DEBUG - Big5 Chinese prober hit error at byte 11
+2025-06-29 14:02:05,851 - chardet.charsetprober - DEBUG - EUC-TW Taiwan prober hit error at byte 11
+2025-06-29 14:02:05,851 - chardet.charsetprober - DEBUG - Johab Korean prober hit error at byte 16
+2025-06-29 14:02:12,392 - chardet.charsetprober - DEBUG - windows-1251 Russian confidence = 0.05994048818026752
+2025-06-29 14:02:12,400 - chardet.charsetprober - DEBUG - KOI8-R Russian confidence = 0.05121922949389863
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - ISO-8859-5 Russian confidence = 0.05507909213740125
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - MacCyrillic Russian confidence = 0.06175565601524736
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - IBM866 Russian confidence = 0.05471480044604084
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - IBM855 Russian confidence = 0.05278758400672018
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - ISO-8859-7 Greek confidence = 0.09573866800450967
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - windows-1253 Greek confidence = 0.09745427570968553
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - ISO-8859-5 Bulgarian confidence = 0.054386757055201164
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - windows-1251 Bulgarian confidence = 0.058758053946610635
+2025-06-29 14:02:12,401 - chardet.charsetprober - DEBUG - TIS-620 Thai confidence = 0.05717012748775824
+2025-06-29 14:02:12,402 - chardet.charsetprober - DEBUG - ISO-8859-9 Turkish confidence = 0.05401926407970969
+2025-06-29 14:02:12,402 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.0
+2025-06-29 14:02:12,402 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.06146673526784108
+2025-06-29 14:02:12,402 - chardet.charsetprober - DEBUG - ISO-8859-8 Hebrew confidence = 0.06126541438930125
+2025-06-29 14:02:12,402 - chardet.universaldetector - DEBUG - no probers hit minimum threshold
+2025-06-29 14:02:12,402 - chardet.universaldetector - DEBUG - utf-8  confidence = 0.010000000000000009
+2025-06-29 14:02:12,406 - chardet.universaldetector - DEBUG - SHIFT_JIS Japanese confidence = 0.01
+2025-06-29 14:02:12,408 - chardet.universaldetector - DEBUG - EUC-JP Japanese confidence = 0.01
+2025-06-29 14:02:12,409 - chardet.universaldetector - DEBUG - GB2312 Chinese confidence = 0.01
+2025-06-29 14:02:12,411 - chardet.universaldetector - DEBUG - EUC-KR Korean confidence = 0.01
+2025-06-29 14:02:12,411 - chardet.universaldetector - DEBUG - CP949 Korean confidence = 0.01
+2025-06-29 14:02:12,411 - chardet.universaldetector - DEBUG - Big5 Chinese confidence = 0.01
+2025-06-29 14:02:12,411 - chardet.universaldetector - DEBUG - EUC-TW Taiwan confidence = 0.01
+2025-06-29 14:02:12,411 - chardet.universaldetector - DEBUG - Johab Korean confidence = 0.01
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - windows-1251 Russian confidence = 0.05994048818026752
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - KOI8-R Russian confidence = 0.05121922949389863
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - ISO-8859-5 Russian confidence = 0.05507909213740125
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - MacCyrillic Russian confidence = 0.06175565601524736
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - IBM866 Russian confidence = 0.05471480044604084
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - IBM855 Russian confidence = 0.05278758400672018
+2025-06-29 14:02:12,412 - chardet.universaldetector - DEBUG - ISO-8859-7 Greek confidence = 0.09573866800450967
+2025-06-29 14:02:12,414 - chardet.universaldetector - DEBUG - windows-1253 Greek confidence = 0.09745427570968553
+2025-06-29 14:02:12,415 - chardet.universaldetector - DEBUG - ISO-8859-5 Bulgarian confidence = 0.054386757055201164
+2025-06-29 14:02:12,415 - chardet.universaldetector - DEBUG - windows-1251 Bulgarian confidence = 0.058758053946610635
+2025-06-29 14:02:12,415 - chardet.universaldetector - DEBUG - TIS-620 Thai confidence = 0.05717012748775824
+2025-06-29 14:02:12,415 - chardet.universaldetector - DEBUG - ISO-8859-9 Turkish confidence = 0.05401926407970969
+2025-06-29 14:02:12,415 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.0
+2025-06-29 14:02:12,416 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.06146673526784108
+2025-06-29 14:02:12,416 - chardet.universaldetector - DEBUG - ISO-8859-8 Hebrew confidence = 0.06126541438930125
+2025-06-29 14:02:12,418 - chardet.universaldetector - DEBUG - ISO-8859-1  confidence = 0.01
+2025-06-29 14:02:12,418 - chardet.universaldetector - DEBUG - MacRoman  confidence = 0.0
+2025-06-29 14:02:12,442 - __main__.TinyCTI - DEBUG - Collecté 2012207 octets depuis URLhaus_CSV
+2025-06-29 14:02:12,443 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_CSV
+2025-06-29 14:02:12,458 - __main__.Plugin.URLhaus_CSV - DEBUG - En-têtes CSV détectés: ['PK\x03\x04\x14\x00\x00\x00\x08\x00\t��Z\x19']
+2025-06-29 14:02:12,464 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 14:02:12,466 - __main__.Plugin.URLhaus_CSV - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 14:02:12,466 - __main__.Plugin.URLhaus_CSV - DEBUG -   Colonne 0: 'PK    	��Z'
+2025-06-29 14:02:12,466 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse des colonnes - Min: 1, Max: 2, Moyenne: 1.2
+2025-06-29 14:02:12,466 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00\t��Z\x19']
+2025-06-29 14:02:12,471 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00\t��Z\x19']
+2025-06-29 14:02:12,482 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-29 14:02:12,484 - __main__.TinyCTI - DEBUG - Collecte des données depuis MalwareBazaar_Hashes
+2025-06-29 14:02:12,486 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 14:02:12,652 - __main__.TinyCTI - DEBUG - Collecté 285698 octets depuis MalwareBazaar_Hashes
+2025-06-29 14:02:12,652 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis MalwareBazaar_Hashes
+2025-06-29 14:02:12,653 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - En-têtes CSV détectés: ['################################################################']
+2025-06-29 14:02:12,653 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 14:02:12,654 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 14:02:12,654 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG -   Colonne 0: '################################################################'
+2025-06-29 14:02:12,655 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse des colonnes - Min: 1, Max: 1, Moyenne: 1.0
+2025-06-29 14:02:12,656 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 14:02:12,657 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 14:02:12,658 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:02:12,658 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-29 14:02:12,659 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 14:02:12,660 - __main__.TinyCTI - INFO - Durée totale: 10.57 secondes
+2025-06-29 14:02:12,660 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-29 14:02:12,661 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-29 14:02:12,662 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-29 14:02:12,662 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-29 14:02:12,662 - __main__.TinyCTI - INFO - IOCs totaux traités: 78339
+2025-06-29 14:02:12,662 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 78339
+2025-06-29 14:02:12,663 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-29 14:02:12,664 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-29 14:02:12,665 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-29 14:02:12,666 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv4.txt -> ngfw/live/malicious-ips.txt
+2025-06-29 14:02:12,669 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv6.txt -> ngfw/live/malicious-ipv6.txt
+2025-06-29 14:02:12,671 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/domain.txt -> ngfw/live/malicious-domains.txt
+2025-06-29 14:02:12,873 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/url.txt -> ngfw/live/malicious-urls.txt
+2025-06-29 14:02:12,875 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv4.txt -> ngfw/chaud/malicious-ips.txt
+2025-06-29 14:02:12,876 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv6.txt -> ngfw/chaud/malicious-ipv6.txt
+2025-06-29 14:02:12,877 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/domain.txt -> ngfw/chaud/malicious-domains.txt
+2025-06-29 14:02:12,878 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/url.txt -> ngfw/chaud/malicious-urls.txt
+2025-06-29 14:02:12,879 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv4.txt -> ngfw/tiede/malicious-ips.txt
+2025-06-29 14:02:12,880 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv6.txt -> ngfw/tiede/malicious-ipv6.txt
+2025-06-29 14:02:12,882 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/domain.txt -> ngfw/tiede/malicious-domains.txt
+2025-06-29 14:02:12,883 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/url.txt -> ngfw/tiede/malicious-urls.txt
+2025-06-29 14:02:12,884 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv4.txt -> ngfw/froid/malicious-ips.txt
+2025-06-29 14:02:12,885 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv6.txt -> ngfw/froid/malicious-ipv6.txt
+2025-06-29 14:02:12,886 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/domain.txt -> ngfw/froid/malicious-domains.txt
+2025-06-29 14:02:12,887 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/url.txt -> ngfw/froid/malicious-urls.txt
+2025-06-29 14:02:12,887 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-29 14:02:12,889 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-29 14:02:12,890 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-29 14:02:12,891 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-29 17:27:47,140 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 17:27:51,250 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 17:27:51,391 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 17:27:52,117 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:27:52,118 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:27:52,122 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 17:27:52,276 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:27:52,276 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:27:59,948 - __main__.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 17:27:59,949 - __main__.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 17:27:59,950 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 17:27:59,951 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 17:27:59,951 - __main__.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 17:27:59,951 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 17:31:26
+2025-06-29 17:27:59,952 - __main__.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 17:31:20
+2025-06-29 17:27:59,952 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 17:29:31
+2025-06-29 17:27:59,952 - __main__.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 17:28:37
+2025-06-29 17:27:59,952 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:27:59,952 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-29 17:27:59,952 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:27:59,952 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-29 17:27:59,952 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-29 17:27:59,953 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_URLs
+2025-06-29 17:27:59,953 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 17:28:00,140 - __main__.TinyCTI - DEBUG - Collecté 3273892 octets depuis URLhaus_URLs
+2025-06-29 17:28:00,140 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_URLs
+2025-06-29 17:28:00,149 - __main__.Plugin.URLhaus_URLs - DEBUG - Traitement de 78239 lignes
+2025-06-29 17:28:00,970 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 78229 IOCs depuis URLhaus_URLs
+2025-06-29 17:28:00,972 - __main__.TinyCTI - INFO - Extrait 78229 IOCs depuis URLhaus_URLs
+2025-06-29 17:28:02,896 - __main__.IOCStorage - DEBUG - Écrit 78229 IOCs dans iocs/live/url.txt
+2025-06-29 17:28:02,898 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 2.95s: 78229 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 3273892, 'iocs_extracted': 78229, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:28:02,906 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-29 17:28:02,907 - __main__.TinyCTI - DEBUG - Collecte des données depuis Feodo_IPs
+2025-06-29 17:28:02,907 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 17:28:03,019 - __main__.TinyCTI - DEBUG - Collecté 506 octets depuis Feodo_IPs
+2025-06-29 17:28:03,019 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis Feodo_IPs
+2025-06-29 17:28:03,020 - __main__.Plugin.Feodo_IPs - DEBUG - Traitement de 11 lignes
+2025-06-29 17:28:03,020 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:28:03,020 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:28:03,029 - __main__.IOCStorage - DEBUG - Écrit 1 IOCs dans iocs/live/ipv4.txt
+2025-06-29 17:28:03,029 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.12s: 1 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 506, 'iocs_extracted': 1, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:28:03,030 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-29 17:28:03,030 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_CSV
+2025-06-29 17:28:03,030 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 17:28:03,462 - charset_normalizer - DEBUG - Encoding detection: Unable to determine any suitable charset.
+2025-06-29 17:28:03,492 - __main__.TinyCTI - DEBUG - Collecté 2011304 octets depuis URLhaus_CSV
+2025-06-29 17:28:03,496 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_CSV
+2025-06-29 17:28:03,512 - __main__.Plugin.URLhaus_CSV - DEBUG - En-têtes CSV détectés: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:28:03,513 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 17:28:03,513 - __main__.Plugin.URLhaus_CSV - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 17:28:03,513 - __main__.Plugin.URLhaus_CSV - DEBUG -   Colonne 0: 'PK    )��Z#;%�'
+2025-06-29 17:28:03,514 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse des colonnes - Min: 1, Max: 2, Moyenne: 1.2
+2025-06-29 17:28:03,514 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:28:03,514 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:28:03,519 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-29 17:28:03,520 - __main__.TinyCTI - DEBUG - Collecte des données depuis MalwareBazaar_Hashes
+2025-06-29 17:28:03,520 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 17:28:03,666 - __main__.TinyCTI - DEBUG - Collecté 289311 octets depuis MalwareBazaar_Hashes
+2025-06-29 17:28:03,666 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis MalwareBazaar_Hashes
+2025-06-29 17:28:03,667 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - En-têtes CSV détectés: ['################################################################']
+2025-06-29 17:28:03,667 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 17:28:03,667 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 17:28:03,668 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG -   Colonne 0: '################################################################'
+2025-06-29 17:28:03,668 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse des colonnes - Min: 1, Max: 1, Moyenne: 1.0
+2025-06-29 17:28:03,668 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:28:03,669 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:28:03,670 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:28:03,670 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-29 17:28:03,670 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:28:03,670 - __main__.TinyCTI - INFO - Durée totale: 3.72 secondes
+2025-06-29 17:28:03,671 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-29 17:28:03,671 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-29 17:28:03,671 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-29 17:28:03,671 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-29 17:28:03,671 - __main__.TinyCTI - INFO - IOCs totaux traités: 78230
+2025-06-29 17:28:03,672 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 78230
+2025-06-29 17:28:03,672 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-29 17:28:03,672 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-29 17:28:03,672 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-29 17:28:03,673 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv4.txt -> ngfw/live/malicious-ips.txt
+2025-06-29 17:28:03,675 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv6.txt -> ngfw/live/malicious-ipv6.txt
+2025-06-29 17:28:03,675 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/domain.txt -> ngfw/live/malicious-domains.txt
+2025-06-29 17:28:03,762 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/url.txt -> ngfw/live/malicious-urls.txt
+2025-06-29 17:28:03,763 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv4.txt -> ngfw/chaud/malicious-ips.txt
+2025-06-29 17:28:03,764 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv6.txt -> ngfw/chaud/malicious-ipv6.txt
+2025-06-29 17:28:03,766 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/domain.txt -> ngfw/chaud/malicious-domains.txt
+2025-06-29 17:28:03,767 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/url.txt -> ngfw/chaud/malicious-urls.txt
+2025-06-29 17:28:03,767 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv4.txt -> ngfw/tiede/malicious-ips.txt
+2025-06-29 17:28:03,768 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv6.txt -> ngfw/tiede/malicious-ipv6.txt
+2025-06-29 17:28:03,769 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/domain.txt -> ngfw/tiede/malicious-domains.txt
+2025-06-29 17:28:03,770 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/url.txt -> ngfw/tiede/malicious-urls.txt
+2025-06-29 17:28:03,771 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv4.txt -> ngfw/froid/malicious-ips.txt
+2025-06-29 17:28:03,772 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv6.txt -> ngfw/froid/malicious-ipv6.txt
+2025-06-29 17:28:03,773 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/domain.txt -> ngfw/froid/malicious-domains.txt
+2025-06-29 17:28:03,774 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/url.txt -> ngfw/froid/malicious-urls.txt
+2025-06-29 17:28:03,775 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-29 17:28:03,776 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-29 17:28:03,777 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-29 17:28:03,777 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-29 17:28:14,279 - __main__.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 17:28:14,280 - __main__.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 17:28:14,281 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 17:28:14,282 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 17:28:14,282 - __main__.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 17:28:14,283 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 17:30:28
+2025-06-29 17:28:14,283 - __main__.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 17:33:08
+2025-06-29 17:28:14,284 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 17:31:08
+2025-06-29 17:28:14,284 - __main__.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 17:30:36
+2025-06-29 17:28:14,286 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:28:14,286 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-29 17:28:14,286 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:28:14,286 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-29 17:28:14,286 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-29 17:28:14,286 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_URLs
+2025-06-29 17:28:14,287 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 17:28:14,459 - __main__.TinyCTI - DEBUG - Collecté 3273892 octets depuis URLhaus_URLs
+2025-06-29 17:28:14,459 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_URLs
+2025-06-29 17:28:14,466 - __main__.Plugin.URLhaus_URLs - DEBUG - Traitement de 78239 lignes
+2025-06-29 17:28:15,228 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 78229 IOCs depuis URLhaus_URLs
+2025-06-29 17:28:15,230 - __main__.TinyCTI - INFO - Extrait 78229 IOCs depuis URLhaus_URLs
+2025-06-29 17:28:16,883 - __main__.IOCStorage - DEBUG - Écrit 78229 IOCs dans iocs/live/url.txt
+2025-06-29 17:28:16,884 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 2.60s: 78229 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 3273892, 'iocs_extracted': 78229, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:28:16,891 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-29 17:28:16,892 - __main__.TinyCTI - DEBUG - Collecte des données depuis Feodo_IPs
+2025-06-29 17:28:16,892 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 17:28:16,991 - __main__.TinyCTI - DEBUG - Collecté 506 octets depuis Feodo_IPs
+2025-06-29 17:28:16,992 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis Feodo_IPs
+2025-06-29 17:28:16,992 - __main__.Plugin.Feodo_IPs - DEBUG - Traitement de 11 lignes
+2025-06-29 17:28:16,992 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:28:16,992 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:28:17,000 - __main__.IOCStorage - DEBUG - Écrit 1 IOCs dans iocs/live/ipv4.txt
+2025-06-29 17:28:17,000 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.11s: 1 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 506, 'iocs_extracted': 1, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:28:17,002 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-29 17:28:17,002 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_CSV
+2025-06-29 17:28:17,002 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 17:28:17,436 - charset_normalizer - DEBUG - Encoding detection: Unable to determine any suitable charset.
+2025-06-29 17:28:17,463 - __main__.TinyCTI - DEBUG - Collecté 2011304 octets depuis URLhaus_CSV
+2025-06-29 17:28:17,463 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_CSV
+2025-06-29 17:28:17,476 - __main__.Plugin.URLhaus_CSV - DEBUG - En-têtes CSV détectés: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:28:17,476 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 17:28:17,476 - __main__.Plugin.URLhaus_CSV - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 17:28:17,477 - __main__.Plugin.URLhaus_CSV - DEBUG -   Colonne 0: 'PK    )��Z#;%�'
+2025-06-29 17:28:17,477 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse des colonnes - Min: 1, Max: 2, Moyenne: 1.2
+2025-06-29 17:28:17,477 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:28:17,478 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00)��Z#;%�']
+2025-06-29 17:28:17,481 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-29 17:28:17,481 - __main__.TinyCTI - DEBUG - Collecte des données depuis MalwareBazaar_Hashes
+2025-06-29 17:28:17,481 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 17:28:17,635 - __main__.TinyCTI - DEBUG - Collecté 289311 octets depuis MalwareBazaar_Hashes
+2025-06-29 17:28:17,635 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis MalwareBazaar_Hashes
+2025-06-29 17:28:17,636 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - En-têtes CSV détectés: ['################################################################']
+2025-06-29 17:28:17,636 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 17:28:17,636 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 17:28:17,636 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG -   Colonne 0: '################################################################'
+2025-06-29 17:28:17,636 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse des colonnes - Min: 1, Max: 1, Moyenne: 1.0
+2025-06-29 17:28:17,636 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:28:17,637 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Durée totale: 3.35 secondes
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - IOCs totaux traités: 78230
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 78230
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-29 17:28:17,638 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-29 17:28:17,639 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-29 17:28:17,640 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv4.txt -> ngfw/live/malicious-ips.txt
+2025-06-29 17:28:17,641 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv6.txt -> ngfw/live/malicious-ipv6.txt
+2025-06-29 17:28:17,642 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/domain.txt -> ngfw/live/malicious-domains.txt
+2025-06-29 17:28:17,775 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/url.txt -> ngfw/live/malicious-urls.txt
+2025-06-29 17:28:17,776 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv4.txt -> ngfw/chaud/malicious-ips.txt
+2025-06-29 17:28:17,777 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv6.txt -> ngfw/chaud/malicious-ipv6.txt
+2025-06-29 17:28:17,777 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/domain.txt -> ngfw/chaud/malicious-domains.txt
+2025-06-29 17:28:17,777 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/url.txt -> ngfw/chaud/malicious-urls.txt
+2025-06-29 17:28:17,778 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv4.txt -> ngfw/tiede/malicious-ips.txt
+2025-06-29 17:28:17,778 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv6.txt -> ngfw/tiede/malicious-ipv6.txt
+2025-06-29 17:28:17,789 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/domain.txt -> ngfw/tiede/malicious-domains.txt
+2025-06-29 17:28:17,790 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/url.txt -> ngfw/tiede/malicious-urls.txt
+2025-06-29 17:28:17,792 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv4.txt -> ngfw/froid/malicious-ips.txt
+2025-06-29 17:28:17,793 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv6.txt -> ngfw/froid/malicious-ipv6.txt
+2025-06-29 17:28:17,794 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/domain.txt -> ngfw/froid/malicious-domains.txt
+2025-06-29 17:28:17,795 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/url.txt -> ngfw/froid/malicious-urls.txt
+2025-06-29 17:28:17,796 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-29 17:28:17,799 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-29 17:28:17,801 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-29 17:28:17,801 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-29 17:38:09,972 - __main__.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 17:38:09,989 - __main__.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 17:38:09,990 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 17:38:09,992 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 17:38:09,993 - __main__.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 17:38:09,994 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 17:38:44
+2025-06-29 17:38:09,994 - __main__.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 17:38:59
+2025-06-29 17:38:09,994 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 17:38:27
+2025-06-29 17:38:09,994 - __main__.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 17:40:22
+2025-06-29 17:38:09,995 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:38:09,995 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-29 17:38:09,996 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:38:09,997 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-29 17:38:09,997 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-29 17:38:09,998 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 17:38:11,080 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 78224 IOCs depuis URLhaus_URLs
+2025-06-29 17:38:11,083 - __main__.TinyCTI - INFO - Extrait 78224 IOCs depuis URLhaus_URLs
+2025-06-29 17:38:13,694 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 3.70s: 78224 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 3273724, 'iocs_extracted': 78224, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:38:13,704 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-29 17:38:13,710 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 17:38:13,840 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:38:13,840 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:38:13,856 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.15s: 1 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 506, 'iocs_extracted': 1, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:38:13,860 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-29 17:38:13,862 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 17:38:14,417 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00i��ZdVM%�] \x00���\x00\x07\x00']
+2025-06-29 17:38:14,417 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00i��ZdVM%�] \x00���\x00\x07\x00']
+2025-06-29 17:38:14,420 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-29 17:38:14,420 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 17:38:14,572 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:38:14,572 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:38:14,572 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:38:14,572 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-29 17:38:14,572 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:38:14,572 - __main__.TinyCTI - INFO - Durée totale: 4.58 secondes
+2025-06-29 17:38:14,572 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-29 17:38:14,572 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - IOCs totaux traités: 78225
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 78225
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-29 17:38:14,573 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-29 17:38:14,769 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-29 17:38:14,770 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-29 17:38:14,772 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-29 17:38:14,772 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-29 17:39:00,170 - __main__.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 17:39:00,171 - __main__.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 17:39:00,172 - __main__.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 17:39:00,173 - __main__.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 17:39:00,173 - __main__.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 17:39:00,173 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 17:43:09
+2025-06-29 17:39:00,174 - __main__.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 17:43:26
+2025-06-29 17:39:00,174 - __main__.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 17:40:41
+2025-06-29 17:39:00,175 - __main__.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 17:40:58
+2025-06-29 17:39:00,175 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:39:00,175 - __main__.TinyCTI - INFO - Début de la collecte TinyCTI (mode one-shot)
+2025-06-29 17:39:00,175 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:39:00,175 - __main__.TinyCTI - INFO - Traitement de 4 flux activés
+2025-06-29 17:39:00,175 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_URLs
+2025-06-29 17:39:00,176 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_URLs
+2025-06-29 17:39:00,176 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 17:39:00,378 - __main__.TinyCTI - DEBUG - Collecté 3273724 octets depuis URLhaus_URLs
+2025-06-29 17:39:00,378 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_URLs
+2025-06-29 17:39:00,388 - __main__.Plugin.URLhaus_URLs - DEBUG - Traitement de 78234 lignes
+2025-06-29 17:39:01,277 - __main__.Plugin.URLhaus_URLs - INFO - Extrait 78224 IOCs depuis URLhaus_URLs
+2025-06-29 17:39:01,282 - __main__.TinyCTI - INFO - Extrait 78224 IOCs depuis URLhaus_URLs
+2025-06-29 17:39:03,091 - __main__.IOCStorage - INFO - Rotation sans compression: iocs/live/url.txt -> iocs/live/url.20250629_173903.txt
+2025-06-29 17:39:03,128 - __main__.IOCStorage - DEBUG - Écrit 78224 IOCs dans iocs/live/url.txt
+2025-06-29 17:39:03,130 - __main__.TinyCTI - INFO - Flux URLhaus_URLs terminé en 2.95s: 78224 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 3273724, 'iocs_extracted': 78224, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:39:03,139 - __main__.TinyCTI - INFO - Début du traitement: Feodo_IPs
+2025-06-29 17:39:03,139 - __main__.TinyCTI - DEBUG - Collecte des données depuis Feodo_IPs
+2025-06-29 17:39:03,139 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 17:39:03,243 - __main__.TinyCTI - DEBUG - Collecté 506 octets depuis Feodo_IPs
+2025-06-29 17:39:03,243 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis Feodo_IPs
+2025-06-29 17:39:03,243 - __main__.Plugin.Feodo_IPs - DEBUG - Traitement de 11 lignes
+2025-06-29 17:39:03,244 - __main__.Plugin.Feodo_IPs - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:39:03,244 - __main__.TinyCTI - INFO - Extrait 1 IOCs depuis Feodo_IPs
+2025-06-29 17:39:03,257 - __main__.IOCStorage - DEBUG - Écrit 1 IOCs dans iocs/live/ipv4.txt
+2025-06-29 17:39:03,258 - __main__.TinyCTI - INFO - Flux Feodo_IPs terminé en 0.12s: 1 nouveaux IOCs, 0 doublons, 0 erreurs{'requests_made': 1, 'bytes_downloaded': 506, 'iocs_extracted': 1, 'errors': 0, 'retries': 0} 'plugin_stats'
+2025-06-29 17:39:03,258 - __main__.TinyCTI - INFO - Début du traitement: URLhaus_CSV
+2025-06-29 17:39:03,259 - __main__.TinyCTI - DEBUG - Collecte des données depuis URLhaus_CSV
+2025-06-29 17:39:03,259 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 17:39:03,739 - charset_normalizer - DEBUG - Encoding detection: Unable to determine any suitable charset.
+2025-06-29 17:39:03,766 - __main__.TinyCTI - DEBUG - Collecté 2011540 octets depuis URLhaus_CSV
+2025-06-29 17:39:03,767 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis URLhaus_CSV
+2025-06-29 17:39:03,780 - __main__.Plugin.URLhaus_CSV - DEBUG - En-têtes CSV détectés: ['PK\x03\x04\x14\x00\x00\x00\x08\x00i��ZdVM%�] \x00���\x00\x07\x00']
+2025-06-29 17:39:03,782 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 17:39:03,782 - __main__.Plugin.URLhaus_CSV - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 17:39:03,782 - __main__.Plugin.URLhaus_CSV - DEBUG -   Colonne 0: 'PK    i��ZdVM%�]  ���  '
+2025-06-29 17:39:03,782 - __main__.Plugin.URLhaus_CSV - DEBUG - Analyse des colonnes - Min: 1, Max: 2, Moyenne: 1.2
+2025-06-29 17:39:03,782 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00i��ZdVM%�] \x00���\x00\x07\x00']
+2025-06-29 17:39:03,782 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00i��ZdVM%�] \x00���\x00\x07\x00']
+2025-06-29 17:39:03,785 - __main__.TinyCTI - INFO - Début du traitement: MalwareBazaar_Hashes
+2025-06-29 17:39:03,786 - __main__.TinyCTI - DEBUG - Collecte des données depuis MalwareBazaar_Hashes
+2025-06-29 17:39:03,786 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 17:39:03,931 - __main__.TinyCTI - DEBUG - Collecté 286381 octets depuis MalwareBazaar_Hashes
+2025-06-29 17:39:03,931 - __main__.TinyCTI - DEBUG - Parsing des IOCs depuis MalwareBazaar_Hashes
+2025-06-29 17:39:03,932 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - En-têtes CSV détectés: ['################################################################']
+2025-06-29 17:39:03,932 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse de la structure CSV avec délimiteur ','
+2025-06-29 17:39:03,932 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Nombre de colonnes d'en-tête: 1
+2025-06-29 17:39:03,932 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG -   Colonne 0: '################################################################'
+2025-06-29 17:39:03,932 - __main__.Plugin.MalwareBazaar_Hashes - DEBUG - Analyse des colonnes - Min: 1, Max: 1, Moyenne: 1.0
+2025-06-29 17:39:03,932 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:39:03,932 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:39:03,933 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Collecte TinyCTI terminée
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - ==================================================
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Durée totale: 3.76 secondes
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Flux totaux: 4
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Flux activés: 4
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Flux traités avec succès: 2
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Flux en erreur: 2
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - IOCs totaux traités: 78225
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Nouveaux IOCs ajoutés: 78225
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - IOCs dupliqués ignorés: 0
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Taux de réussite: 50.0%
+2025-06-29 17:39:03,934 - __main__.TinyCTI - INFO - Début de l'export automatique NGFW
+2025-06-29 17:39:03,935 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv4.txt -> ngfw/live/malicious-ips.txt
+2025-06-29 17:39:03,935 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/ipv6.txt -> ngfw/live/malicious-ipv6.txt
+2025-06-29 17:39:03,936 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/domain.txt -> ngfw/live/malicious-domains.txt
+2025-06-29 17:39:03,983 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/live/url.txt -> ngfw/live/malicious-urls.txt
+2025-06-29 17:39:03,987 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv4.txt -> ngfw/chaud/malicious-ips.txt
+2025-06-29 17:39:03,987 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/ipv6.txt -> ngfw/chaud/malicious-ipv6.txt
+2025-06-29 17:39:03,988 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/domain.txt -> ngfw/chaud/malicious-domains.txt
+2025-06-29 17:39:03,988 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/chaud/url.txt -> ngfw/chaud/malicious-urls.txt
+2025-06-29 17:39:03,989 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv4.txt -> ngfw/tiede/malicious-ips.txt
+2025-06-29 17:39:03,989 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/ipv6.txt -> ngfw/tiede/malicious-ipv6.txt
+2025-06-29 17:39:03,990 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/domain.txt -> ngfw/tiede/malicious-domains.txt
+2025-06-29 17:39:03,990 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/tiede/url.txt -> ngfw/tiede/malicious-urls.txt
+2025-06-29 17:39:03,991 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv4.txt -> ngfw/froid/malicious-ips.txt
+2025-06-29 17:39:03,991 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/ipv6.txt -> ngfw/froid/malicious-ipv6.txt
+2025-06-29 17:39:03,991 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/domain.txt -> ngfw/froid/malicious-domains.txt
+2025-06-29 17:39:03,992 - __main__.NGFWExporter - DEBUG - Export NGFW: iocs/froid/url.txt -> ngfw/froid/malicious-urls.txt
+2025-06-29 17:39:03,992 - __main__.NGFWExporter - INFO - Export NGFW terminé pour tous les buckets
+2025-06-29 17:39:03,993 - __main__.NGFWExporter - INFO - Alias pfSense générés: ngfw/live/pfsense-aliases.txt
+2025-06-29 17:39:03,993 - __main__.NGFWExporter - INFO - Règles iptables générées: ngfw/live/iptables-rules.sh
+2025-06-29 17:39:03,993 - __main__.TinyCTI - INFO - Export automatique NGFW terminé
+2025-06-29 17:42:43,382 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 17:42:43] "GET / HTTP/1.1" 200 -
+2025-06-29 17:42:43,751 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 17:42:43] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-06-29 17:42:58,439 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 17:42:58] "GET /iocs HTTP/1.1" 200 -
+2025-06-29 17:43:03,772 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 17:43:03] "GET /feeds HTTP/1.1" 200 -
+2025-06-29 17:43:03,854 - tinycti.audit - INFO - User: api_user, IP: 127.0.0.1, Action: VIEW_FEEDS, Details: 
+2025-06-29 17:43:03,857 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 17:43:03] "GET /api/feeds HTTP/1.1" 200 -
+2025-06-29 17:54:45,023 - tinycti.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
+2025-06-29 17:54:45,027 - tinycti.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
+2025-06-29 17:54:45,028 - tinycti.IOCStorage - INFO - Structure de stockage initialisée dans iocs
+2025-06-29 17:54:45,029 - tinycti.IOCStorage - INFO - Base de données de déduplication initialisée
+2025-06-29 17:54:45,029 - tinycti.TinyCTI - INFO - Gestionnaire de rétention initialisé
+2025-06-29 17:54:45,029 - tinycti.FeedScheduler - INFO - Tâche planifiée: URLhaus_URLs - Intervalle: 30m (1800s) - Priorité: 1 - Première exécution: 17:58:28
+2025-06-29 17:54:45,029 - tinycti.FeedScheduler - INFO - Tâche planifiée: Feodo_IPs - Intervalle: 1h (3600s) - Priorité: 2 - Première exécution: 17:54:59
+2025-06-29 17:54:45,029 - tinycti.FeedScheduler - INFO - Tâche planifiée: URLhaus_CSV - Intervalle: 45m (2700s) - Priorité: 1 - Première exécution: 17:56:39
+2025-06-29 17:54:45,029 - tinycti.FeedScheduler - INFO - Tâche planifiée: MalwareBazaar_Hashes - Intervalle: 2h (7200s) - Priorité: 3 - Première exécution: 17:54:49
+2025-06-29 17:57:14,103 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 17:57:18,271 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux Feodo_IPs
+2025-06-29 17:57:18,405 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 17:57:19,056 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00��Z�AD؇] \x00Z��\x00\x07\x00']
+2025-06-29 17:57:19,056 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00��Z�AD؇] \x00Z��\x00\x07\x00']
+2025-06-29 17:57:19,059 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 17:57:19,214 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:57:19,214 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 17:58:43,162 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 18:00:33,727 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 18:00:33] "GET / HTTP/1.1" 200 -
+2025-06-29 18:00:37,389 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 18:00:37] "GET /feeds HTTP/1.1" 200 -
+2025-06-29 18:00:37,470 - tinycti.audit - INFO - User: api_user, IP: 127.0.0.1, Action: VIEW_FEEDS, Details: 
+2025-06-29 18:00:37,473 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 18:00:37] "GET /api/feeds HTTP/1.1" 200 -
+2025-06-29 18:00:41,646 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 18:00:41] "GET /iocs HTTP/1.1" 200 -
+2025-06-29 18:00:48,043 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 18:00:48] "GET /api/iocs/domain?bucket=live&limit=500 HTTP/1.1" 200 -
+2025-06-29 18:00:53,606 - werkzeug - INFO - 127.0.0.1 - - [29/Jun/2025 18:00:53] "GET /api/iocs/url?bucket=live&limit=500 HTTP/1.1" 200 -
+2025-06-29 18:02:46,025 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_URLs
+2025-06-29 18:03:49,963 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux URLhaus_CSV
+2025-06-29 18:03:49,965 - __main__.APIKeyManager - WARNING - Aucune clé API disponible pour le flux MalwareBazaar_Hashes
+2025-06-29 18:03:50,126 - __main__.Plugin.MalwareBazaar_Hashes - ERROR - Erreur lors du parsing CSV: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 18:03:50,126 - __main__.TinyCTI - ERROR - Erreur de plugin pour MalwareBazaar_Hashes: Erreur de parsing: Colonne 'sha256_hash' non trouvée dans l'en-tête. Colonnes disponibles: ['################################################################']
+2025-06-29 18:03:50,126 - __main__.FeedScheduler - WARNING - Erreur pour MalwareBazaar_Hashes (1 consécutives), report à 22:03:50 (délai x2)
+2025-06-29 18:03:50,559 - __main__.Plugin.URLhaus_CSV - ERROR - Erreur lors du parsing CSV: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00\x08��Zm=\x08��] \x00F��\x00\x07\x00']
+2025-06-29 18:03:50,561 - __main__.TinyCTI - ERROR - Erreur de plugin pour URLhaus_CSV: Erreur de parsing: Colonne 'url' non trouvée dans l'en-tête. Colonnes disponibles: ['PK\x03\x04\x14\x00\x00\x00\x08\x00\x08��Zm=\x08��] \x00F��\x00\x07\x00']
+2025-06-29 18:03:50,565 - __main__.FeedScheduler - WARNING - Erreur pour URLhaus_CSV (1 consécutives), report à 19:33:50 (délai x2)

@@ -1,264 +1,190 @@
-# Configuration TinyCTI - Framework modulaire léger de collecte d'IOCs
-# Fichier: config.yaml
-
-# Répertoire de sortie des IOCs (optionnel, défaut: "iocs")
-output_dir: "iocs"
-
-# Taille maximale des fichiers IOCs en octets (10MB par défaut)
-max_file_size: 10485760
-
-# Traitement parallèle des flux (false par défaut pour plus de stabilité)
-parallel_feeds: false
-
-# Nombre maximum de workers pour le traitement parallèle
-max_workers: 4
-
-# ==========================================
-# CONFIGURATION DAEMON
-# ==========================================
-
-# Configuration du mode daemon (planification automatique)
-daemon:
-  enabled: false                    # Active le mode daemon
-  default_schedule: "1h"            # Planification par défaut pour les flux
-  check_interval: "60s"             # Intervalle de vérification des tâches
-  max_concurrent_feeds: 3           # Nombre max de flux traités simultanément
-
-# Configuration des flux IOCs
-feeds:
-  # ==========================================
-  # FLUX TEXTE BRUT
-  # ==========================================
-  
-  # URLhaus - URLs malveillantes (Abuse.ch)
-  - name: "URLhaus_URLs"
-    type: "text"
-    url: "https://urlhaus.abuse.ch/downloads/text/"
-    retention: "live"
-    timeout: 30
-    max_retries: 3
-    # Planification spécifique
-    schedule: "30m"                 # Collecte toutes les 30 minutes
-    priority: 1                     # Haute priorité (1-10)
-    rate_limit: 0                   # Pas de limite (source publique)
-    enabled: true
-
-  # Feodo Tracker - IPs de C&C (Abuse.ch)
-  - name: "Feodo_IPs"
-    type: "text"
-    url: "https://feodotracker.abuse.ch/downloads/ipblocklist.txt"
-    retention: "live"
-    schedule: "1h"                  # Collecte toutes les heures
-    priority: 2
-    enabled: true
-
-  # ==========================================
-  # FLUX CSV
-  # ==========================================
-  
-  # URLhaus - Données complètes CSV (avec gestion robuste des erreurs)
-  - name: "URLhaus_CSV"
-    type: "csv"
-    url: "https://urlhaus.abuse.ch/downloads/csv/"
-    delimiter: ","
-    encoding: "utf-8"
-    column: "url"                   # Nom de colonne plutôt qu'index (plus robuste)
-    has_header: true
-    retention: "live"
-    schedule: "45m"                 # Légèrement décalé pour éviter la concurrence
-    priority: 1
-    # Options avancées pour URLhaus
-    auto_detect_column: false       # Désactivé car colonne connue
-    skip_malformed_lines: true      # Ignore les lignes incomplètes
-    min_columns: 3                  # URLhaus a au minimum 3 colonnes
-    enabled: true
-
-  # MalwareBazaar - Hashes de malwares
-  - name: "MalwareBazaar_Hashes"
-    type: "csv"
-    url: "https://bazaar.abuse.ch/export/csv/recent/"
-    delimiter: ","
-    column: "sha256_hash"  # Nom de colonne
-    has_header: true
-    retention: "chaud"
-    schedule: "2h"                  # Moins fréquent pour les hashes
-    priority: 3
-    enabled: true
-
-  # ==========================================
-  # FLUX JSON (APIs)
-  # ==========================================
-  
-  # Exemple d'API JSON avec clé
-  - name: "ThreatAPI_JSON"
-    type: "json"
-    url: "https://api.example.com/v1/indicators"
-    api_keys:
-      - "your-primary-api-key-here"
-      - "your-backup-api-key-here"  # Clé de secours pour rotation
-    json_path: ["data", "indicators"]  # Chemin vers les IOCs: data.indicators
-    retention: "chaud"
-    timeout: 45
-    # Planification pour APIs externes avec limites
-    schedule: "6h"                  # Collecte 4 fois par jour
-    priority: 4                     # Priorité moyenne
-    rate_limit: 30                  # Attente 30s entre requêtes (respect API)
-    enabled: false  # Désactivé par défaut (exemple)
-
-  # AlienVault OTX (exemple)
-  - name: "OTX_Indicators"
-    type: "json"
-    url: "https://otx.alienvault.com/api/v1/indicators/export"
-    api_keys:
-      - "your-otx-api-key"
-    json_path: ["results"]
-    retention: "chaud"
-    schedule: "12h"                 # Collecte 2 fois par jour (limitation API)
-    priority: 5
-    rate_limit: 60                  # OTX a des limitations strictes
-    enabled: false
-
-  # ==========================================
-  # FLUX STIX 2.x
-  # ==========================================
-  
-  # Exemple de flux STIX public
-  - name: "STIX_ThreatFeed"
-    type: "stix"
-    url: "https://example.com/threat-intel/stix-bundle.json"
-    retention: "chaud"
-    timeout: 60
-    enabled: false
-
-  # ==========================================
-  # FLUX TAXII 2.x
-  # ==========================================
-  
-  # Serveur TAXII avec authentification par clé API
-  - name: "TAXII_Server"
-    type: "taxii"
-    url: "https://taxii.example.com/api/"
-    collection_id: "threat-indicators"
-    api_keys:
-      - "your-taxii-api-key"
-    limit: 1000        # Nombre max d'objets à récupérer
-    retention: "tiede"
-    enabled: false
-
-  # Serveur TAXII avec authentification login/password
-  - name: "TAXII_Auth_Server"
-    type: "taxii"
-    url: "https://private.taxii.example.com/api/"
-    collection_id: "private-indicators"
-    username: "your-username"
-    password: "your-password"
-    limit: 500
-    retention: "tiede"
-    enabled: false
-
-  # ==========================================
-  # FLUX RSS
-  # ==========================================
-  
-  # Blog de sécurité avec IOCs
-  - name: "Security_Blog_RSS"
-    type: "rss"
-    url: "https://blog.example.com/security/feed.xml"
-    max_entries: 50    # Limite le nombre d'articles à traiter
-    retention: "tiede"
-    schedule: "4h"                  # RSS moins fréquent
-    priority: 7                     # Priorité basse
-    enabled: false
-
-  # Flux RSS d'alertes sécurité
-  - name: "CERT_Alerts_RSS"
-    type: "rss"
-    url: "https://cert.example.org/alerts.rss"
-    max_entries: 100
-    retention: "froid"
-    schedule: "1d"                  # Une fois par jour pour les archives
-    priority: 9                     # Très basse priorité
-    enabled: false
-
-  # ==========================================
-  # FLUX INTERNES (SPAMMING AUTORISÉ)
-  # ==========================================
-  
-  # Exemple de flux interne - peut être collecté très fréquemment
-  - name: "Internal_Honeypot_IPs"
-    type: "text"
-    url: "http://internal.honeypot.local/malicious-ips.txt"
-    retention: "live"
-    schedule: "5m"                  # Toutes les 5 minutes (interne)
-    priority: 1                     # Très haute priorité
-    rate_limit: 0                   # Pas de limitation (interne)
-    enabled: false
-
-  # Base de données interne via API
-  - name: "Internal_ThreatDB"
-    type: "json"
-    url: "http://threatdb.internal.local/api/v1/iocs"
-    json_path: ["data"]
-    retention: "live"
-    schedule: "2m"                  # Très fréquent pour les données critiques
-    priority: 1
-    rate_limit: 0                   # Pas de limitation (interne)
-    enabled: false
-
-# ==========================================
-# CONFIGURATION API REST
-# ==========================================
-
-# Interface de gestion web et API REST
 api:
-  enabled: false                    # Active l'API REST et interface web
-  host: "127.0.0.1"                 # Adresse d'écoute (0.0.0.0 pour externe)
-  port: 5000                        # Port d'écoute
-  auto_export_ngfw: true            # Export NGFW automatique via API
-
-# ==========================================
-# EXPORT POUR NGFW/FIREWALL
-# ==========================================
-
-# Configuration de l'export pour firewalls/NGFW
-ngfw_export:
-  enabled: true                     # Active l'export NGFW
-  output_dir: "ngfw"                # Répertoire de sortie NGFW
-  auto_export_after_collection: true  # Export automatique après collecte
-  generate_pfsense_aliases: true    # Génère des alias pfSense
-  generate_iptables_rules: true     # Génère des règles iptables
-
-# ==========================================
-# POLITIQUE DE RÉTENTION
-# ==========================================
-
-retention_policy:
-  # Durée avant passage du niveau live vers chaud
-  live_to_chaud: "24h"
-  
-  # Durée avant passage du niveau chaud vers tiède
-  chaud_to_tiede: "7d"
-  
-  # Durée avant passage du niveau tiède vers froid
-  tiede_to_froid: "30d"
-  
-  # Durée de conservation en froid avant purge
-  froid_retention: "365d"
-
-# ==========================================
-# CONFIGURATION AVANCÉE
-# ==========================================
-
-# Logs détaillés (optionnel)
+  auto_export_ngfw: true
+  enabled: false
+  host: 127.0.0.1
+  port: 5000
+  auth:
+    enabled: false
+    password: ""
+    rate_limit:
+      enabled: true
+      requests_per_minute: 60
+      burst: 10
+  export:
+    csv_enabled: true
+    json_enabled: true
+    text_enabled: true
+    max_records: 10000
+daemon:
+  check_interval: 60s
+  default_schedule: 1h
+  enabled: true
+  max_concurrent_feeds: 3
+feeds:
+- api_keys: &id001 []
+  auto_detect_column: false
+  column: 0
+  delimiter: ','
+  enabled: true
+  encoding: utf-8
+  has_header: true
+  json_path: &id002 []
+  limit: 100
+  max_entries: 100
+  max_retries: 3
+  min_columns: 0
+  name: URLhaus_URLs
+  priority: 1
+  rate_limit: 0
+  retention: live
+  schedule: 30m
+  skip_malformed_lines: true
+  timeout: 30
+  type: text
+  url: https://urlhaus.abuse.ch/downloads/text/
+- api_keys: *id001
+  auto_detect_column: false
+  column: 0
+  delimiter: ','
+  enabled: true
+  encoding: utf-8
+  has_header: true
+  json_path: *id002
+  limit: 100
+  max_entries: 100
+  max_retries: 3
+  min_columns: 0
+  name: Feodo_IPs
+  priority: 2
+  rate_limit: 0
+  retention: live
+  schedule: 1h
+  skip_malformed_lines: true
+  timeout: 30
+  type: text
+  url: https://feodotracker.abuse.ch/downloads/ipblocklist.txt
+- api_keys: *id001
+  auto_detect_column: false
+  column: url
+  delimiter: ','
+  enabled: true
+  encoding: utf-8
+  has_header: true
+  json_path: *id002
+  limit: 100
+  max_entries: 100
+  max_retries: 3
+  min_columns: 3
+  name: URLhaus_CSV
+  priority: 1
+  rate_limit: 0
+  retention: live
+  schedule: 45m
+  skip_malformed_lines: true
+  timeout: 30
+  type: csv
+  url: https://urlhaus.abuse.ch/downloads/csv/
+- api_keys: *id001
+  auto_detect_column: false
+  column: sha256_hash
+  delimiter: ','
+  enabled: true
+  encoding: utf-8
+  has_header: true
+  json_path: *id002
+  limit: 100
+  max_entries: 100
+  max_retries: 3
+  min_columns: 0
+  name: MalwareBazaar_Hashes
+  priority: 3
+  rate_limit: 0
+  retention: chaud
+  schedule: 2h
+  skip_malformed_lines: true
+  timeout: 30
+  type: csv
+  url: https://bazaar.abuse.ch/export/csv/recent/
 logging:
-  level: "INFO"        # DEBUG, INFO, WARNING, ERROR
-  file: "tinycti.log"
-  max_size: "10MB"
   backup_count: 5
-
-# Sécurité (optionnel)
+  file: tinycti.log
+  level: INFO
+  max_size: 10MB
+  compression: true
+  compress_after: 24h
+  retention_days: 30
+  audit_enabled: true
+  audit_file: tinycti-audit.log
+max_file_size: 10485760
+max_workers: 4
+ngfw_export:
+  auto_export_after_collection: true
+  enabled: true
+  generate_iptables_rules: true
+  generate_pfsense_aliases: true
+  output_dir: ngfw
+output_dir: iocs
+parallel_feeds: false
+retention_policy:
+  chaud_to_tiede: 7d
+  froid_retention: 365d
+  live_to_chaud: 24h
+  tiede_to_froid: 30d
 security:
-  max_file_size: 52428800      # 50MB max par fichier téléchargé
-  max_json_depth: 10           # Profondeur max pour parsing JSON
-  validate_ssl: true           # Vérification des certificats SSL
-  user_agent: "TinyCTI/1.0"    # User-Agent personnalisé
+  max_file_size: 52428800
+  max_json_depth: 10
+  user_agent: TinyCTI/1.0
+  validate_ssl: true
+authentication:
+  users:
+    admin:
+      password_hash: "$2b$12$LQv9YB.JcTiWJ9L8JSUQie7KwKy7W3aEJJIr3k9KtKcvFfK6Dt5o2"  # default: admin123
+      role: admin
+  saml:
+    enabled: false
+    sp_entity_id: "tinycti"
+    sp_assertion_consumer_service_url: "http://localhost:5000/saml/acs"
+    idp_metadata_url: ""
+    idp_sso_service_url: ""
+    idp_x509_cert: ""
+  openid:
+    enabled: false
+    client_id: ""
+    client_secret: ""
+    discovery_url: ""
+    redirect_uri: "http://localhost:5000/openid/callback"
+
+# Configuration de l'API interne d'exposition de fichiers .txt
+internal_api:
+  enabled: false  # Activez pour exposer les fichiers des buckets
+  host: "127.0.0.1"
+  port: 8080
+  auth_token: ""  # Token d'accès optionnel - laissez vide pour accès libre
+  rate_limit: 100  # Requêtes par minute
+
+# Configuration SSL/TLS pour les feeds externes
+# Ajoutez ces paramètres dans chaque feed selon vos besoins :
+ssl_config_example:
+  # Dans chaque feed, vous pouvez ajouter :
+  ssl:
+    verify: true          # Vérification SSL (true par défaut)
+    cert_file: ""         # Fichier certificat client (optionnel)
+    key_file: ""          # Fichier clé privée client (optionnel)
+    ca_bundle: ""         # Bundle CA personnalisé (optionnel)
+  
+  # Authentification avancée pour APIs tierces :
+  auth:
+    type: "none"          # none, basic, bearer, api_key, oauth2
+    username: ""          # Pour basic auth
+    password: ""          # Pour basic auth
+    token: ""             # Pour bearer token
+    key: ""               # Pour api_key
+    header: "X-API-Key"   # Header pour api_key (défaut: X-API-Key)
+    client_id: ""         # Pour OAuth2
+    client_secret: ""     # Pour OAuth2
+    token_url: ""         # Pour OAuth2
+  
+  # Headers personnalisés
+  headers:
+    "User-Agent": "TinyCTI/1.0"
+    # Ajoutez d'autres headers si nécessaire

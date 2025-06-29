@@ -1,0 +1,179 @@
+#!/bin/bash
+
+# TinyCTI Daemon Control Script
+# Usage: tinycti-daemon {start|stop|restart|status}
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TINYCTI_DIR="$(dirname "$SCRIPT_DIR")"
+TINYCTI_BINARY="$TINYCTI_DIR/bin/tinycti"
+PIDFILE="/var/run/tinycti.pid"
+LOGFILE="/var/log/tinycti-daemon.log"
+USER="tinycti"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+log() {
+    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[ERROR]${NC} $1" >&2
+}
+
+warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+check_user() {
+    if [ "$(whoami)" != "root" ] && [ "$(whoami)" != "$USER" ]; then
+        error "This script must be run as root or $USER user"
+        exit 1
+    fi
+}
+
+is_running() {
+    if [ -f "$PIDFILE" ]; then
+        local pid=$(cat "$PIDFILE")
+        if kill -0 "$pid" 2>/dev/null; then
+            return 0
+        else
+            rm -f "$PIDFILE"
+            return 1
+        fi
+    fi
+    return 1
+}
+
+start_daemon() {
+    log "Starting TinyCTI daemon..."
+    
+    if is_running; then
+        warning "TinyCTI daemon is already running (PID: $(cat $PIDFILE))"
+        return 0
+    fi
+    
+    # Create log directory if it doesn't exist
+    mkdir -p "$(dirname "$LOGFILE")"
+    
+    # Start the daemon
+    if [ "$(whoami)" = "root" ]; then
+        sudo -u "$USER" nohup "$TINYCTI_BINARY" --daemon > "$LOGFILE" 2>&1 & echo $! > "$PIDFILE"
+    else
+        nohup "$TINYCTI_BINARY" --daemon > "$LOGFILE" 2>&1 & echo $! > "$PIDFILE"
+    fi
+    
+    sleep 2
+    
+    if is_running; then
+        log "TinyCTI daemon started successfully (PID: $(cat $PIDFILE))"
+        log "Logs: $LOGFILE"
+    else
+        error "Failed to start TinyCTI daemon"
+        return 1
+    fi
+}
+
+stop_daemon() {
+    log "Stopping TinyCTI daemon..."
+    
+    if ! is_running; then
+        warning "TinyCTI daemon is not running"
+        return 0
+    fi
+    
+    local pid=$(cat "$PIDFILE")
+    kill "$pid" 2>/dev/null
+    
+    # Wait for graceful shutdown
+    local count=0
+    while is_running && [ $count -lt 10 ]; do
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    if is_running; then
+        warning "Graceful shutdown failed, forcing kill..."
+        kill -9 "$pid" 2>/dev/null
+        sleep 1
+    fi
+    
+    rm -f "$PIDFILE"
+    log "TinyCTI daemon stopped"
+}
+
+restart_daemon() {
+    stop_daemon
+    sleep 2
+    start_daemon
+}
+
+status_daemon() {
+    if is_running; then
+        local pid=$(cat "$PIDFILE")
+        log "TinyCTI daemon is running (PID: $pid)"
+        
+        # Show basic stats
+        echo ""
+        echo "Process info:"
+        ps -p "$pid" -o pid,ppid,user,time,cmd --no-headers
+        
+        echo ""
+        echo "Memory usage:"
+        ps -p "$pid" -o pid,rss,vsz --no-headers | awk '{printf "  RSS: %d KB, VSZ: %d KB\n", $2, $3}'
+        
+        echo ""
+        echo "Log tail (last 10 lines):"
+        if [ -f "$LOGFILE" ]; then
+            tail -10 "$LOGFILE" | sed 's/^/  /'
+        else
+            echo "  No log file found"
+        fi
+        
+        return 0
+    else
+        warning "TinyCTI daemon is not running"
+        return 1
+    fi
+}
+
+main() {
+    case "${1:-}" in
+        start)
+            check_user
+            start_daemon
+            ;;
+        stop)
+            check_user
+            stop_daemon
+            ;;
+        restart)
+            check_user
+            restart_daemon
+            ;;
+        status)
+            status_daemon
+            ;;
+        *)
+            echo "Usage: $0 {start|stop|restart|status}"
+            echo ""
+            echo "Commands:"
+            echo "  start    Start the TinyCTI daemon"
+            echo "  stop     Stop the TinyCTI daemon"
+            echo "  restart  Restart the TinyCTI daemon"
+            echo "  status   Show daemon status and stats"
+            echo ""
+            echo "Configuration:"
+            echo "  PIDFILE: $PIDFILE"
+            echo "  LOGFILE: $LOGFILE"
+            echo "  USER: $USER"
+            echo ""
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
