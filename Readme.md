@@ -1,56 +1,9 @@
-# TinyCTI
-
-A tiny and efficient CTI Framework
-
-
 **[27/06/2025 - This project is under very active development, and it is currently possible to encounter errors. The TinyCTI project is still in beta and has been opened for feedback. Please take this into account.
 Don't hesitate to suggest corrections via pull requests.]**
 
-##  Monitoring et Logs
 
-### Surveillance du Daemon
+![image](https://github.com/user-attachments/assets/be9c1f9e-eebc-4c32-be22-da25cdd693cf)
 
-```bash
-# Statut en temps réel
-python tinycti.py --status
-
-# Exemple de sortie:
-# === Statut du Planificateur TinyCTI ===
-# Tâches totales: 5
-# Tâches en cours: 1
-# Tâches prêtes: 2
-# Prochaine exécution: 2025-06-27 22:15:30
-# 
-# Détail des tâches:
-#   URLhaus_URLs:  EN ATTENTE
-#     Priorité: 1
-#     Prochaine exécution: dans 1205s
-#   ThreatAPI:  EN COURS
-#     Priorité: 4
-```
-
-### Analyse des logs du daemon
-
-```bash
-# Suivre les logs en temps réel
-tail -f tinycti.log
-
-# Statistiques du daemon
-grep "Statistiques du daemon" tinycti.log | tail -1
-
-# Erreurs de flux spécifiques  
-grep "Erreur pour.*URLhaus" tinycti.log
-
-# Taux de réussite global
-grep "Taux de réussite" tinycti.log | tail -5
-```
-
-### Métriques importantes
-
-Le daemon affiche périodiquement ses statistiques :
-
-- **Uptime** : Temps de fonctionnement depuis le démarrage
-- **Exécutions totales** : Nombre de collectes effectuées
 
 # TinyCTI - Framework Modulaire Léger de Collecte d'IOCs
 
