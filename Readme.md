@@ -1,8 +1,8 @@
 **[27/06/2025 - This project is under very active development, and it is currently possible to encounter errors. The TinyCTI project is still in beta and has been opened for feedback. Please take this into account.
 Don't hesitate to suggest corrections via pull requests.]**
 
+![image](https://github.com/user-attachments/assets/ea07dc77-d0f1-46c3-a806-e284fad0f0cd)
 
-![image](https://github.com/user-attachments/assets/be9c1f9e-eebc-4c32-be22-da25cdd693cf)
 
 
 # TinyCTI - Framework Modulaire Léger de Collecte d'IOCs
