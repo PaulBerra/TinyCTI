@@ -32,8 +32,7 @@ pip install requests feedparser iocextract stix2 taxii2-client pyyaml cerberus
 
 ```bash
 # Télécharger les fichiers
-wget https://raw.githubusercontent.com/example/tinycti/main/tinycti.py
-wget https://raw.githubusercontent.com/example/tinycti/main/config.yaml
+git clone https://github.com/PaulBerra/TinyCTI.git
 chmod +x tinycti.py
 ```
 
