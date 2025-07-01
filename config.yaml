@@ -36,7 +36,7 @@ feeds:
   name: URLhaus_URLs
   priority: 1
   rate_limit: 0
-  retention: live
+  retention: active
   schedule: 30m
   skip_malformed_lines: true
   timeout: 30
@@ -57,7 +57,7 @@ feeds:
   name: Feodo_IPs
   priority: 2
   rate_limit: 0
-  retention: live
+  retention: active
   schedule: 1h
   skip_malformed_lines: true
   timeout: 30
@@ -78,7 +78,7 @@ feeds:
   name: URLhaus_CSV
   priority: 1
   rate_limit: 0
-  retention: live
+  retention: active
   schedule: 45m
   skip_malformed_lines: true
   timeout: 30
@@ -99,7 +99,7 @@ feeds:
   name: MalwareBazaar_Hashes
   priority: 3
   rate_limit: 0
-  retention: chaud
+  retention: critical
   schedule: 2h
   skip_malformed_lines: true
   timeout: 30
@@ -126,10 +126,10 @@ ngfw_export:
 output_dir: iocs
 parallel_feeds: false
 retention_policy:
-  chaud_to_tiede: 7d
-  froid_retention: 365d
-  live_to_chaud: 24h
-  tiede_to_froid: 30d
+  critical_to_watch: 7d
+  archive_retention: 365d
+  active_to_critical: 24h
+  watch_to_archive: 30d
 security:
   max_file_size: 52428800
   max_json_depth: 10

@@ -8,9 +8,9 @@ Usage:
     gunicorn --bind 0.0.0.0:5000 --workers 2 wsgi:app
 """
 
+import logging
 import os
 import sys
-import logging
 from pathlib import Path
 
 # Ajoute le répertoire courant au PYTHONPATH

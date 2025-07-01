@@ -4,50 +4,58 @@ TinyCTI - Framework modulaire léger de collecte et publication d'IOCs
 Architecture respectant le cahier des charges technique
 """
 
-import os
-import sys
-import json
+from __future__ import annotations
+
 import csv
-import yaml
-import logging
+import gc
 import hashlib
-import re
-import time
+import json
+import logging
+import os
 import random
-import sqlite3
+import re
 import shutil
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, field
-from abc import ABC, abstractmethod
-from urllib.parse import urlparse
-import traceback
-from enum import Enum
-import threading
-import uuid
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 import signal
+import sqlite3
+import sys
+import threading
+import time
+import traceback
+import uuid
+import weakref
+from abc import ABC, abstractmethod
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+from urllib.parse import urlparse
+
+import psutil
+import yaml
 
 # Bibliothèques externes
 try:
-    import requests
-    from requests.adapters import HTTPAdapter
-    from requests.packages.urllib3.util.retry import Retry
+    import gzip
+    import zipfile
+
+    import bcrypt
     import feedparser
     import iocextract
+    import jwt
+    import requests
     import stix2
     import taxii2client
     from cerberus import Validator
-    from flask import Flask, jsonify, request, render_template_string, session, redirect, url_for, Response
-    from werkzeug.serving import make_server
+    from flask import (Flask, Response, jsonify, redirect,
+                       render_template_string, request, session, url_for)
     from flask_limiter import Limiter
     from flask_limiter.util import get_remote_address
-    import bcrypt
-    import jwt
-    import gzip
-    import zipfile
+    from requests.adapters import HTTPAdapter
+    from requests.packages.urllib3.util.retry import Retry
+    from werkzeug.serving import make_server
 except ImportError as e:
     print(f"Erreur d'import: {e}")
     print(
@@ -56,66 +64,637 @@ except ImportError as e:
     sys.exit(1)
 
 # ===============================
-# UTILITAIRES COMMUNS
+# UTILITAIRES COMMUNS ET SÉCURITÉ
 # ===============================
+
+import hashlib
+import hmac
+import re
+import secrets
+from html import escape
+
+
+class SecurityValidator:
+    """Validateur de sécurité pour l'entrée utilisateur"""
+
+    # Patterns de validation sécurisée
+    SAFE_FILENAME_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
+    SAFE_PATH_PATTERN = re.compile(r"^[a-zA-Z0-9._/-]+$")
+    SAFE_CONFIG_KEY_PATTERN = re.compile(r"^[a-zA-Z0-9._-]+$")
+
+    # Longueurs maximales
+    MAX_FILENAME_LENGTH = 255
+    MAX_PATH_LENGTH = 4096
+    MAX_CONFIG_VALUE_LENGTH = 8192
+    MAX_LOG_MESSAGE_LENGTH = 2048
+
+    @staticmethod
+    def sanitize_filename(filename: str) -> str:
+        """Nettoie et valide un nom de fichier"""
+        if not filename or len(filename) > SecurityValidator.MAX_FILENAME_LENGTH:
+            raise ValueError("Nom de fichier invalide ou trop long")
+
+        # Supprime les caractères dangereux
+        sanitized = re.sub(r"[^\w\.-]", "_", filename)
+
+        # Vérifie contre les noms réservés
+        reserved_names = {
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "COM2",
+            "COM3",
+            "COM4",
+            "COM5",
+            "COM6",
+            "COM7",
+            "COM8",
+            "COM9",
+            "LPT1",
+            "LPT2",
+            "LPT3",
+            "LPT4",
+            "LPT5",
+            "LPT6",
+            "LPT7",
+            "LPT8",
+            "LPT9",
+        }
+        if sanitized.upper() in reserved_names:
+            sanitized = f"safe_{sanitized}"
+
+        return sanitized
+
+    @staticmethod
+    def sanitize_path(path: str) -> str:
+        """Nettoie et valide un chemin de fichier"""
+        if not path or len(path) > SecurityValidator.MAX_PATH_LENGTH:
+            raise ValueError("Chemin invalide ou trop long")
+
+        # Normalise le chemin et empêche le directory traversal
+        normalized = os.path.normpath(path)
+        if ".." in normalized or normalized.startswith("/"):
+            raise ValueError("Chemin non autorisé détecté")
+
+        return normalized
+
+    @staticmethod
+    def sanitize_log_message(message: str) -> str:
+        """Nettoie un message de log pour éviter l'injection"""
+        if not message:
+            return ""
+
+        # Limite la longueur
+        if len(message) > SecurityValidator.MAX_LOG_MESSAGE_LENGTH:
+            message = message[: SecurityValidator.MAX_LOG_MESSAGE_LENGTH] + "..."
+
+        # Échappe les caractères HTML et supprime les caractères de contrôle
+        sanitized = escape(message)
+        sanitized = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", sanitized)
+
+        return sanitized
+
+    @staticmethod
+    def validate_ioc_value(value: str, ioc_type: str) -> bool:
+        """Valide qu'une valeur IOC est sûre et conforme au type"""
+        if not value or len(value) > 2048:  # Limite raisonnable pour les IOCs
+            return False
+
+        # Patterns de validation par type d'IOC
+        patterns = {
+            "ipv4": re.compile(
+                r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
+            ),
+            "ipv6": re.compile(
+                r"^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$"
+            ),
+            "domain": re.compile(
+                r"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$"
+            ),
+            "url": re.compile(r"^https?://[^\s/$.?#].[^\s]*$"),
+            "email": re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"),
+            "hash_md5": re.compile(r"^[a-fA-F0-9]{32}$"),
+            "hash_sha1": re.compile(r"^[a-fA-F0-9]{40}$"),
+            "hash_sha256": re.compile(r"^[a-fA-F0-9]{64}$"),
+            "hash_sha512": re.compile(r"^[a-fA-F0-9]{128}$"),
+        }
+
+        pattern = patterns.get(ioc_type)
+        return pattern.match(value) is not None if pattern else True
+
+
+class SecureSessionManager:
+    """Gestionnaire de sessions sécurisé"""
+
+    def __init__(self, secret_key: str):
+        if not secret_key or len(secret_key) < 32:
+            raise ValueError("Clé secrète trop faible")
+        self.secret_key = (
+            secret_key.encode() if isinstance(secret_key, str) else secret_key
+        )
+        self.sessions = {}  # En production, utiliser Redis ou une base de données
+
+    def create_session(self, user_id: str, user_data: dict) -> str:
+        """Crée une session sécurisée"""
+        session_id = secrets.token_urlsafe(32)
+        timestamp = datetime.now()
+
+        session_data = {
+            "user_id": user_id,
+            "user_data": user_data,
+            "created_at": timestamp,
+            "last_accessed": timestamp,
+            "csrf_token": secrets.token_urlsafe(32),
+        }
+
+        # Signe la session
+        session_signature = self._sign_session(session_id, session_data)
+        session_data["signature"] = session_signature
+
+        self.sessions[session_id] = session_data
+        return session_id
+
+    def validate_session(self, session_id: str) -> Optional[dict]:
+        """Valide et récupère une session"""
+        if not session_id or session_id not in self.sessions:
+            return None
+
+        session_data = self.sessions[session_id]
+
+        # Vérifie la signature
+        expected_signature = self._sign_session(
+            session_id, {k: v for k, v in session_data.items() if k != "signature"}
+        )
+        if not hmac.compare_digest(session_data["signature"], expected_signature):
+            self.invalidate_session(session_id)
+            return None
+
+        # Vérifie l'expiration (24h par défaut)
+        if datetime.now() - session_data["created_at"] > timedelta(hours=24):
+            self.invalidate_session(session_id)
+            return None
+
+        # Met à jour l'accès
+        session_data["last_accessed"] = datetime.now()
+        return session_data
+
+    def invalidate_session(self, session_id: str):
+        """Invalide une session"""
+        self.sessions.pop(session_id, None)
+
+    def _sign_session(self, session_id: str, session_data: dict) -> str:
+        """Signe une session avec HMAC"""
+        data_to_sign = (
+            f"{session_id}:{session_data['user_id']}:{session_data['created_at']}"
+        )
+        return hmac.new(
+            self.secret_key, data_to_sign.encode(), hashlib.sha256
+        ).hexdigest()
+
+
+class RateLimiter:
+    """Limiteur de débit avancé avec protection DDoS"""
+
+    def __init__(self):
+        self.requests = {}  # IP -> [timestamps]
+        self.blocked_ips = {}  # IP -> block_until_timestamp
+        self.failed_attempts = {}  # IP -> failed_count
+
+    def is_allowed(
+        self,
+        ip: str,
+        endpoint: str = "default",
+        max_requests: int = 60,
+        window_seconds: int = 60,
+    ) -> bool:
+        """Vérifie si une requête est autorisée"""
+        now = datetime.now()
+
+        # Vérifie si l'IP est bloquée
+        if ip in self.blocked_ips:
+            if now < self.blocked_ips[ip]:
+                return False
+            else:
+                del self.blocked_ips[ip]
+
+        # Clé unique par IP et endpoint
+        key = f"{ip}:{endpoint}"
+
+        # Nettoie les anciennes requêtes
+        if key in self.requests:
+            self.requests[key] = [
+                req_time
+                for req_time in self.requests[key]
+                if now - req_time < timedelta(seconds=window_seconds)
+            ]
+        else:
+            self.requests[key] = []
+
+        # Vérifie la limite
+        if len(self.requests[key]) >= max_requests:
+            self._record_failed_attempt(ip)
+            return False
+
+        # Enregistre la requête
+        self.requests[key].append(now)
+        return True
+
+    def _record_failed_attempt(self, ip: str):
+        """Enregistre une tentative échouée et bloque si nécessaire"""
+        self.failed_attempts[ip] = self.failed_attempts.get(ip, 0) + 1
+
+        # Bloque après 5 tentatives échouées
+        if self.failed_attempts[ip] >= 5:
+            block_duration = min(
+                300 * (2 ** (self.failed_attempts[ip] - 5)), 3600
+            )  # Max 1h
+            self.blocked_ips[ip] = datetime.now() + timedelta(seconds=block_duration)
+
+    def reset_failed_attempts(self, ip: str):
+        """Remet à zéro les tentatives échouées (après connexion réussie)"""
+        self.failed_attempts.pop(ip, None)
+
+
+class MemoryManager:
+    """Gestionnaire de mémoire avancé avec monitoring et optimisation"""
+
+    def __init__(self, max_memory_mb: int = 1024, gc_threshold: int = 10000):
+        self.max_memory_mb = max_memory_mb
+        self.gc_threshold = gc_threshold
+        self.object_count = 0
+        self.last_gc_time = datetime.now()
+        self.memory_alerts = []
+
+        # Pools d'objets réutilisables
+        self.string_pool = weakref.WeakValueDictionary()
+        self.list_pool = []
+        self.dict_pool = []
+
+        # Configuration du garbage collector
+        gc.set_threshold(gc_threshold, gc_threshold // 10, gc_threshold // 100)
+
+    def get_memory_usage(self) -> Dict[str, Any]:
+        """Retourne les statistiques d'utilisation mémoire"""
+        process = psutil.Process()
+        memory_info = process.memory_info()
+
+        return {
+            "rss_mb": memory_info.rss / (1024 * 1024),  # Resident Set Size
+            "vms_mb": memory_info.vms / (1024 * 1024),  # Virtual Memory Size
+            "percent": process.memory_percent(),
+            "available_mb": psutil.virtual_memory().available / (1024 * 1024),
+            "gc_counts": gc.get_count(),
+            "object_count": len(gc.get_objects()),
+            "max_memory_mb": self.max_memory_mb,
+        }
+
+    def check_memory_usage(self) -> bool:
+        """Vérifie si l'utilisation mémoire est dans les limites"""
+        memory_stats = self.get_memory_usage()
+
+        if memory_stats["rss_mb"] > self.max_memory_mb:
+            alert = {
+                "timestamp": datetime.now(),
+                "memory_mb": memory_stats["rss_mb"],
+                "limit_mb": self.max_memory_mb,
+                "message": "Memory limit exceeded",
+            }
+            self.memory_alerts.append(alert)
+
+            # Keep only last 100 alerts to prevent unbounded growth
+            if len(self.memory_alerts) > 100:
+                self.memory_alerts = self.memory_alerts[-100:]
+
+            return False
+
+        return True
+
+    def force_garbage_collection(self) -> Dict[str, int]:
+        """Force le garbage collection et retourne les statistiques"""
+        before = len(gc.get_objects())
+
+        # Collecte forcée sur tous les niveaux
+        collected_0 = gc.collect(0)
+        collected_1 = gc.collect(1)
+        collected_2 = gc.collect(2)
+
+        after = len(gc.get_objects())
+        self.last_gc_time = datetime.now()
+
+        # Nettoie les pools d'objets
+        self._clean_object_pools()
+
+        return {
+            "objects_before": before,
+            "objects_after": after,
+            "objects_freed": before - after,
+            "collected_gen0": collected_0,
+            "collected_gen1": collected_1,
+            "collected_gen2": collected_2,
+            "total_collected": collected_0 + collected_1 + collected_2,
+        }
+
+    def optimize_memory(self) -> Dict[str, Any]:
+        """Optimise l'utilisation mémoire"""
+        stats_before = self.get_memory_usage()
+
+        # Garbage collection agressif
+        gc_stats = self.force_garbage_collection()
+
+        # Vide les caches si nécessaire
+        if stats_before["rss_mb"] > self.max_memory_mb * 0.8:
+            self._clear_caches()
+
+        stats_after = self.get_memory_usage()
+
+        return {
+            "memory_before_mb": stats_before["rss_mb"],
+            "memory_after_mb": stats_after["rss_mb"],
+            "memory_freed_mb": stats_before["rss_mb"] - stats_after["rss_mb"],
+            "gc_stats": gc_stats,
+            "optimization_time": datetime.now(),
+        }
+
+    def get_pooled_string(self, value: str) -> str:
+        """Récupère une chaîne depuis le pool ou l'ajoute"""
+        if value in self.string_pool:
+            return self.string_pool[value]
+
+        # Limite la taille du pool
+        if len(self.string_pool) > 10000:
+            self.string_pool.clear()
+
+        self.string_pool[value] = value
+        return value
+
+    def get_pooled_list(self) -> List:
+        """Récupère une liste réutilisable depuis le pool"""
+        if self.list_pool:
+            return self.list_pool.pop()
+        return []
+
+    def return_list(self, lst: List):
+        """Retourne une liste au pool après utilisation"""
+        lst.clear()
+        if len(self.list_pool) < 100:  # Limite la taille du pool
+            self.list_pool.append(lst)
+
+    def get_pooled_dict(self) -> Dict:
+        """Récupère un dictionnaire réutilisable depuis le pool"""
+        if self.dict_pool:
+            return self.dict_pool.pop()
+        return {}
+
+    def return_dict(self, dct: Dict):
+        """Retourne un dictionnaire au pool après utilisation"""
+        dct.clear()
+        if len(self.dict_pool) < 100:  # Limite la taille du pool
+            self.dict_pool.append(dct)
+
+    def _clean_object_pools(self):
+        """Nettoie les pools d'objets"""
+        # Garde seulement les derniers objets utilisés
+        if len(self.list_pool) > 50:
+            self.list_pool = self.list_pool[-50:]
+
+        if len(self.dict_pool) > 50:
+            self.dict_pool = self.dict_pool[-50:]
+
+    def _clear_caches(self):
+        """Vide les caches internes pour libérer de la mémoire"""
+        self.string_pool.clear()
+        self.list_pool.clear()
+        self.dict_pool.clear()
+
+    def get_memory_report(self) -> str:
+        """Génère un rapport détaillé de l'utilisation mémoire"""
+        stats = self.get_memory_usage()
+
+        report = f"""
+=== TinyCTI Memory Report ===
+RSS Memory: {stats['rss_mb']:.2f} MB
+VMS Memory: {stats['vms_mb']:.2f} MB
+Memory %: {stats['percent']:.2f}%
+Available: {stats['available_mb']:.2f} MB
+Max Allowed: {self.max_memory_mb} MB
+Objects: {stats['object_count']}
+GC Counts: {stats['gc_counts']}
+String Pool: {len(self.string_pool)} items
+List Pool: {len(self.list_pool)} items
+Dict Pool: {len(self.dict_pool)} items
+Last GC: {self.last_gc_time}
+Memory Alerts: {len(self.memory_alerts)}
+"""
+
+        if self.memory_alerts:
+            report += "\n=== Recent Memory Alerts ===\n"
+            for alert in self.memory_alerts[-5:]:  # Dernières 5 alertes
+                report += f"{alert['timestamp']}: {alert['message']} ({alert['memory_mb']:.2f}MB)\n"
+
+        return report
+
+
+class PerformanceMonitor:
+    """Moniteur de performance avec métriques détaillées"""
+
+    def __init__(self):
+        self.metrics = {}
+        self.start_times = {}
+        self.memory_manager = MemoryManager()
+
+    def start_timer(self, operation: str):
+        """Démarre un timer pour une opération"""
+        self.start_times[operation] = time.time()
+
+    def end_timer(self, operation: str) -> float:
+        """Termine un timer et enregistre la métrique"""
+        if operation not in self.start_times:
+            return 0.0
+
+        duration = time.time() - self.start_times[operation]
+
+        if operation not in self.metrics:
+            self.metrics[operation] = {
+                "count": 0,
+                "total_time": 0.0,
+                "min_time": float("inf"),
+                "max_time": 0.0,
+                "last_time": 0.0,
+            }
+
+        metrics = self.metrics[operation]
+        metrics["count"] += 1
+        metrics["total_time"] += duration
+        metrics["min_time"] = min(metrics["min_time"], duration)
+        metrics["max_time"] = max(metrics["max_time"], duration)
+        metrics["last_time"] = duration
+
+        del self.start_times[operation]
+        return duration
+
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Retourne les statistiques de performance"""
+        stats = {}
+
+        for operation, data in self.metrics.items():
+            if data["count"] > 0:
+                stats[operation] = {
+                    "count": data["count"],
+                    "avg_time": data["total_time"] / data["count"],
+                    "min_time": data["min_time"],
+                    "max_time": data["max_time"],
+                    "last_time": data["last_time"],
+                    "total_time": data["total_time"],
+                }
+
+        # Ajoute les métriques mémoire
+        stats["memory"] = self.memory_manager.get_memory_usage()
+
+        return stats
+
+    def optimize_if_needed(self) -> Optional[Dict[str, Any]]:
+        """Optimise automatiquement si nécessaire"""
+        if not self.memory_manager.check_memory_usage():
+            return self.memory_manager.optimize_memory()
+        return None
+
 
 def parse_duration(duration_str: str) -> int:
     """Parse une durée en secondes depuis une chaîne (ex: '1h', '30m', '7d')"""
     if not duration_str or not isinstance(duration_str, str):
-        return 0
-    
+        raise ValueError("Duration string is required")
+
     duration_str = duration_str.strip().lower()
-    
+
     # Si c'est déjà un nombre, retourne-le
     if duration_str.isdigit():
-        return int(duration_str)
-    
+        value = int(duration_str)
+        if value <= 0:
+            raise ValueError("Duration must be positive")
+        return value
+
     # Parse les formats avec unités
     import re
-    match = re.match(r'^(\d+)([smhd])$', duration_str)
+
+    match = re.match(r"^(\d+)([smhd])$", duration_str)
     if not match:
-        return 0
-    
+        raise ValueError(f"Invalid duration format: {duration_str}")
+
     value, unit = match.groups()
     value = int(value)
-    
-    multipliers = {
-        's': 1,
-        'm': 60,
-        'h': 3600,
-        'd': 86400
-    }
-    
-    return value * multipliers.get(unit, 1)
+
+    if value <= 0:
+        raise ValueError("Duration must be positive")
+
+    multipliers = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+    # Validation des limites raisonnables
+    result = value * multipliers.get(unit, 1)
+    if unit == "h" and value > 24:
+        raise ValueError("Hours cannot exceed 24")
+    if result > 86400 * 365:  # Plus d'un an
+        raise ValueError("Duration too large")
+
+    return result
+
 
 def parse_size(size_str: str) -> int:
     """Parse une taille en bytes depuis une chaîne (ex: '10MB', '1GB')"""
     if not size_str or not isinstance(size_str, str):
         return 0
-    
+
     size_str = size_str.strip().upper()
-    
+
     # Si c'est déjà un nombre, retourne-le
     if size_str.isdigit():
         return int(size_str)
-    
+
     # Parse les formats avec unités
     import re
-    match = re.match(r'^(\d+(?:\.\d+)?)(KB|MB|GB|TB)$', size_str)
+
+    match = re.match(r"^(\d+(?:\.\d+)?)(KB|MB|GB|TB)$", size_str)
     if not match:
         return 0
-    
+
     value, unit = match.groups()
     value = float(value)
-    
+
     multipliers = {
-        'KB': 1024,
-        'MB': 1024 * 1024,
-        'GB': 1024 * 1024 * 1024,
-        'TB': 1024 * 1024 * 1024 * 1024
+        "KB": 1024,
+        "MB": 1024 * 1024,
+        "GB": 1024 * 1024 * 1024,
+        "TB": 1024 * 1024 * 1024 * 1024,
     }
-    
+
     return int(value * multipliers.get(unit, 1))
+
+
+# ===============================
+# ENUMS ET TYPES
+# ===============================
+
+
+class IOCType(Enum):
+    """Types d'IOCs supportés"""
+
+    IPV4 = "ipv4"
+    IPV6 = "ipv6"
+    DOMAIN = "domain"
+    URL = "url"
+    HASH_MD5 = "hash_md5"
+    HASH_SHA1 = "hash_sha1"
+    HASH_SHA256 = "hash_sha256"
+    HASH_SHA512 = "hash_sha512"
+    EMAIL = "email"
+
+
+class ThreatLevel(Enum):
+    """Niveaux de menace pour classification"""
+
+    HIGH = "high"  # Menace confirmée, impact élevé
+    MEDIUM = "medium"  # Menace probable, impact modéré
+    LOW = "low"  # Menace potentielle, impact faible
+    INFO = "info"  # Information, pas de menace directe
+
+
+class ConfidenceLevel(Enum):
+    """Niveaux de confiance pour les IOCs"""
+
+    CONFIRMED = "confirmed"  # IOC confirmé par multiple sources
+    HIGH = "high"  # IOC de source fiable
+    MEDIUM = "medium"  # IOC de source modérément fiable
+    LOW = "low"  # IOC de source peu fiable
+    UNKNOWN = "unknown"  # Confiance non évaluée
+
+
+class ThreatBucket(Enum):
+    """Buckets de threat intelligence optimisés"""
+
+    # Buckets opérationnels (priorité élevée)
+    CRITICAL = "critical"  # IOCs critiques - Blocking immédiat
+    ACTIVE = "active"  # IOCs actifs - Monitoring renforcé
+    WATCH = "watch"  # IOCs à surveiller - Alerting
+
+    # Buckets d'analyse (priorité moyenne)
+    INTEL = "intel"  # IOCs d'intelligence - Enrichissement
+    EMERGING = "emerging"  # IOCs émergents - Validation en cours
+
+    # Buckets de stockage (priorité faible)
+    ARCHIVE = "archive"  # IOCs archivés - Recherche historique
+    DEPRECATED = "deprecated"  # IOCs obsolètes - Prêts pour suppression
+
+
+# Alias pour compatibilité ascendante
+class RetentionBucket(Enum):
+    """Buckets de rétention (legacy - utiliser ThreatBucket)"""
+
+    LIVE = "critical"  # Mapping vers CRITICAL
+    CHAUD = "active"  # Mapping vers ACTIVE
+    TIEDE = "watch"  # Mapping vers WATCH
+    FROID = "archive"  # Mapping vers ARCHIVE
+
 
 # ===============================
 # CONFIGURATION ET VALIDATION
@@ -124,95 +703,135 @@ def parse_size(size_str: str) -> int:
 
 class ConfigurationError(Exception):
     """Erreur de configuration"""
-    pass
+
+    def __init__(self, message, config_key=None):
+        super().__init__(message)
+        self.config_key = config_key
 
 
 class PluginError(Exception):
     """Erreur de plugin"""
+
     pass
 
 
 class APIError(Exception):
     """Erreur API"""
+
     pass
 
 
 class StorageError(Exception):
     """Erreur de stockage"""
+
     pass
 
 
 class RetentionError(Exception):
     """Erreur de rétention"""
+
     pass
 
 
 class ErrorHandler:
     """Gestionnaire centralisé des erreurs avec logging et récupération"""
-    
-    def __init__(self, logger: logging.Logger):
+
+    def __init__(self, logger: logging.Logger, max_error_history: int = 100):
         self.logger = logger
         self.error_counts = {}
         self.last_errors = []
-        self.max_error_history = 100
-    
-    def handle_error(self, error: Exception, context: str = "", critical: bool = False, 
-                    user_message: str = None) -> dict:
+        self.max_error_history = max_error_history
+
+    def handle_error(
+        self,
+        error: Exception,
+        context: str = "",
+        critical: bool = False,
+        user_message: str = None,
+    ) -> dict:
         """Gère une erreur de manière centralisée
-        
+
         Args:
             error: L'exception à gérer
             context: Contexte où l'erreur s'est produite
             critical: Si True, l'erreur est considérée comme critique
             user_message: Message personnalisé pour l'utilisateur
-            
+
         Returns:
             dict: Informations sur l'erreur pour les APIs
         """
-        error_type = type(error).__name__
-        error_msg = str(error)
-        
-        # Comptabilise les erreurs
-        self.error_counts[error_type] = self.error_counts.get(error_type, 0) + 1
-        
-        # Stocke l'erreur dans l'historique
-        error_info = {
-            "timestamp": datetime.now().isoformat(),
-            "type": error_type,
-            "message": error_msg,
-            "context": context,
-            "critical": critical,
-            "traceback": traceback.format_exc() if critical else None
-        }
-        
-        self.last_errors.append(error_info)
-        if len(self.last_errors) > self.max_error_history:
-            self.last_errors.pop(0)
-        
-        # Log selon la criticité
-        if critical:
-            self.logger.critical(f"Erreur critique dans {context}: {error_type}: {error_msg}")
-            self.logger.critical(f"Traceback: {traceback.format_exc()}")
-        else:
-            self.logger.error(f"Erreur dans {context}: {error_type}: {error_msg}")
-        
-        # Retourne une réponse formatée pour les APIs
-        return {
-            "error": user_message or error_msg,
-            "error_type": error_type,
-            "context": context,
-            "timestamp": error_info["timestamp"]
-        }
-    
-    def get_error_stats(self) -> dict:
+        try:
+            error_type = type(error).__name__
+            error_msg = str(error)
+
+            # Comptabilise les erreurs
+            self.error_counts[error_type] = self.error_counts.get(error_type, 0) + 1
+
+            # Stocke l'erreur dans l'historique
+            tb = traceback.format_exc()
+            error_info = {
+                "timestamp": datetime.now().isoformat(),
+                "type": error_type,
+                "message": error_msg,
+                "error": error_msg,
+                "context": context,
+                "critical": critical,
+                "traceback": tb if tb != "NoneType: None\n" else None,
+            }
+
+            self.last_errors.append(error_info)
+            if len(self.last_errors) > self.max_error_history:
+                self.last_errors.pop(0)
+
+            # Log selon la criticité
+            try:
+                if critical:
+                    self.logger.critical(
+                        f"Erreur critique dans {context}: {error_type}: {error_msg}\nTraceback: {tb}"
+                    )
+                else:
+                    self.logger.error(
+                        f"Erreur dans {context}: {error_type}: {error_msg}"
+                    )
+            except Exception:
+                # Ignore les erreurs de logging pour éviter les cascades
+                pass
+
+            # Retourne une réponse formatée pour les APIs
+            result = {
+                "error": user_message or error_msg,
+                "error_type": error_type,
+                "context": context,
+                "timestamp": error_info["timestamp"],
+                "critical": critical,
+            }
+
+            # Ajoute traceback si disponible
+            if error_info.get("traceback"):
+                result["traceback"] = error_info["traceback"]
+
+            return result
+
+        except (AttributeError, TypeError, ValueError) as internal_error:
+            # En cas d'erreur interne, retourne une structure minimale
+            return {
+                "error": str(error),
+                "error_type": type(error).__name__,
+                "context": context,
+                "timestamp": datetime.now().isoformat(),
+                "critical": critical,
+                "internal_error": str(internal_error),
+            }
+
+    def get_error_stats(self, recent_limit: int = 10) -> Dict[str, Any]:
         """Retourne les statistiques d'erreurs"""
         return {
             "error_counts": self.error_counts.copy(),
             "total_errors": sum(self.error_counts.values()),
-            "recent_errors": self.last_errors[-10:],  # 10 dernières erreurs
-            "critical_errors": [e for e in self.last_errors if e["critical"]]
+            "recent_errors": self.last_errors[-recent_limit:],  # Dernières erreurs
+            "critical_errors": [e for e in self.last_errors if e["critical"]],
         }
-    
+
     def clear_error_history(self):
         """Vide l'historique des erreurs"""
         self.last_errors.clear()
@@ -222,42 +841,45 @@ class ErrorHandler:
 
 class CircuitBreaker:
     """Implémentation d'un circuit breaker pour éviter les cascades d'erreurs"""
-    
+
     def __init__(self, failure_threshold: int = 5, timeout: int = 60):
         self.failure_threshold = failure_threshold
         self.timeout = timeout  # en secondes
         self.failure_count = 0
         self.last_failure_time = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
-    
+
     def call(self, func, *args, **kwargs):
         """Exécute une fonction avec protection circuit breaker"""
         if self.state == "OPEN":
-            if self.last_failure_time and \
-               (datetime.now() - self.last_failure_time).seconds > self.timeout:
+            if (
+                self.last_failure_time
+                and (datetime.now() - self.last_failure_time).total_seconds()
+                > self.timeout
+            ):
                 self.state = "HALF_OPEN"
             else:
                 raise Exception("Circuit breaker is OPEN - operation blocked")
-        
+
         try:
             result = func(*args, **kwargs)
-            
+
             # Succès - reset le circuit breaker
             if self.state == "HALF_OPEN":
                 self.state = "CLOSED"
-                self.failure_count = 0
-            
+            self.failure_count = 0  # Reset le compteur à chaque succès
+
             return result
-            
+
         except Exception as e:
             self.failure_count += 1
             self.last_failure_time = datetime.now()
-            
+
             if self.failure_count >= self.failure_threshold:
                 self.state = "OPEN"
-            
+
             raise e
-    
+
     def reset(self):
         """Reset manuel du circuit breaker"""
         self.failure_count = 0
@@ -285,8 +907,8 @@ class ConfigurationLoader:
                     "enabled": {"type": "boolean", "default": True},
                     "retention": {
                         "type": "string",
-                        "default": "live",
-                        "allowed": ["live", "chaud", "tiede", "froid"],
+                        "default": "active",
+                        "allowed": ["active", "critical", "watch", "archive", "live", "chaud", "tiede", "froid"],
                     },
                     "api_keys": {"type": "list", "default": []},
                     "delimiter": {"type": "string", "default": ","},
@@ -367,10 +989,14 @@ class ConfigurationLoader:
                 "compress_after": "24h",
                 "retention_days": 30,
                 "audit_enabled": False,
-                "audit_file": "audit.log"
+                "audit_file": "audit.log",
             },
             "schema": {
-                "level": {"type": "string", "default": "INFO", "allowed": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]},
+                "level": {
+                    "type": "string",
+                    "default": "INFO",
+                    "allowed": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+                },
                 "file": {"type": "string", "default": "tinycti.log"},
                 "max_size": {"type": "string", "default": "10MB"},
                 "backup_count": {"type": "integer", "default": 5, "min": 0},
@@ -378,8 +1004,8 @@ class ConfigurationLoader:
                 "compress_after": {"type": "string", "default": "24h"},
                 "retention_days": {"type": "integer", "default": 30, "min": 1},
                 "audit_enabled": {"type": "boolean", "default": False},
-                "audit_file": {"type": "string", "default": "audit.log"}
-            }
+                "audit_file": {"type": "string", "default": "audit.log"},
+            },
         },
         "security": {
             "type": "dict",
@@ -403,9 +1029,9 @@ class ConfigurationLoader:
                     "rate_limit": {
                         "enabled": True,
                         "requests_per_minute": 60,
-                        "burst": 10
-                    }
-                }
+                        "burst": 10,
+                    },
+                },
             },
             "schema": {
                 "enabled": {"type": "boolean", "default": False},
@@ -420,8 +1046,8 @@ class ConfigurationLoader:
                         "rate_limit": {
                             "enabled": True,
                             "requests_per_minute": 60,
-                            "burst": 10
-                        }
+                            "burst": 10,
+                        },
                     },
                     "schema": {
                         "enabled": {"type": "boolean", "default": False},
@@ -430,11 +1056,15 @@ class ConfigurationLoader:
                             "type": "dict",
                             "schema": {
                                 "enabled": {"type": "boolean", "default": True},
-                                "requests_per_minute": {"type": "integer", "default": 60, "min": 1},
-                                "burst": {"type": "integer", "default": 10, "min": 1}
-                            }
-                        }
-                    }
+                                "requests_per_minute": {
+                                    "type": "integer",
+                                    "default": 60,
+                                    "min": 1,
+                                },
+                                "burst": {"type": "integer", "default": 10, "min": 1},
+                            },
+                        },
+                    },
                 },
                 "export": {
                     "type": "dict",
@@ -442,16 +1072,16 @@ class ConfigurationLoader:
                         "csv_enabled": True,
                         "json_enabled": True,
                         "text_enabled": True,
-                        "max_records": 10000
+                        "max_records": 10000,
                     },
                     "schema": {
                         "csv_enabled": {"type": "boolean", "default": True},
                         "json_enabled": {"type": "boolean", "default": True},
                         "text_enabled": {"type": "boolean", "default": True},
-                        "max_records": {"type": "integer", "default": 10000, "min": 1}
-                    }
-                }
-            }
+                        "max_records": {"type": "integer", "default": 10000, "min": 1},
+                    },
+                },
+            },
         },
         "ngfw_export": {
             "type": "dict",
@@ -473,15 +1103,15 @@ class ConfigurationLoader:
                     "sp_assertion_consumer_service_url": "http://localhost:5000/saml/acs",
                     "idp_metadata_url": "",
                     "idp_sso_service_url": "",
-                    "idp_x509_cert": ""
+                    "idp_x509_cert": "",
                 },
                 "openid": {
                     "enabled": False,
                     "client_id": "",
                     "client_secret": "",
                     "discovery_url": "",
-                    "redirect_uri": "http://localhost:5000/openid/callback"
-                }
+                    "redirect_uri": "http://localhost:5000/openid/callback",
+                },
             },
             "schema": {
                 "users": {
@@ -490,9 +1120,13 @@ class ConfigurationLoader:
                         "type": "dict",
                         "schema": {
                             "password_hash": {"type": "string"},
-                            "role": {"type": "string", "default": "user", "allowed": ["admin", "user", "readonly"]}
-                        }
-                    }
+                            "role": {
+                                "type": "string",
+                                "default": "user",
+                                "allowed": ["admin", "user", "readonly"],
+                            },
+                        },
+                    },
                 },
                 "saml": {
                     "type": "dict",
@@ -502,16 +1136,19 @@ class ConfigurationLoader:
                         "sp_assertion_consumer_service_url": "http://localhost:5000/saml/acs",
                         "idp_metadata_url": "",
                         "idp_sso_service_url": "",
-                        "idp_x509_cert": ""
+                        "idp_x509_cert": "",
                     },
                     "schema": {
                         "enabled": {"type": "boolean", "default": False},
                         "sp_entity_id": {"type": "string", "default": "tinycti"},
-                        "sp_assertion_consumer_service_url": {"type": "string", "default": "http://localhost:5000/saml/acs"},
+                        "sp_assertion_consumer_service_url": {
+                            "type": "string",
+                            "default": "http://localhost:5000/saml/acs",
+                        },
                         "idp_metadata_url": {"type": "string", "default": ""},
                         "idp_sso_service_url": {"type": "string", "default": ""},
-                        "idp_x509_cert": {"type": "string", "default": ""}
-                    }
+                        "idp_x509_cert": {"type": "string", "default": ""},
+                    },
                 },
                 "openid": {
                     "type": "dict",
@@ -520,24 +1157,24 @@ class ConfigurationLoader:
                         "client_id": "",
                         "client_secret": "",
                         "discovery_url": "",
-                        "redirect_uri": "http://localhost:5000/openid/callback"
+                        "redirect_uri": "http://localhost:5000/openid/callback",
                     },
                     "schema": {
                         "enabled": {"type": "boolean", "default": False},
                         "client_id": {"type": "string", "default": ""},
                         "client_secret": {"type": "string", "default": ""},
                         "discovery_url": {"type": "string", "default": ""},
-                        "redirect_uri": {"type": "string", "default": "http://localhost:5000/openid/callback"}
-                    }
-                }
-            }
+                        "redirect_uri": {
+                            "type": "string",
+                            "default": "http://localhost:5000/openid/callback",
+                        },
+                    },
+                },
+            },
         },
         "retention": {
             "type": "dict",
-            "default": {
-                "enabled": False,
-                "rules": []
-            },
+            "default": {"enabled": False, "rules": []},
             "schema": {
                 "enabled": {"type": "boolean", "default": False},
                 "rules": {
@@ -545,13 +1182,25 @@ class ConfigurationLoader:
                     "schema": {
                         "type": "dict",
                         "schema": {
-                            "from_bucket": {"type": "string", "required": True, "allowed": ["live", "chaud", "tiede", "froid"]},
-                            "to_bucket": {"type": "string", "required": True, "allowed": ["live", "chaud", "tiede", "froid"]},
-                            "after_days": {"type": "integer", "required": True, "min": 1}
-                        }
-                    }
-                }
-            }
+                            "from_bucket": {
+                                "type": "string",
+                                "required": True,
+                                "allowed": ["active", "critical", "watch", "archive", "live", "chaud", "tiede", "froid"],
+                            },
+                            "to_bucket": {
+                                "type": "string",
+                                "required": True,
+                                "allowed": ["active", "critical", "watch", "archive", "live", "chaud", "tiede", "froid"],
+                            },
+                            "after_days": {
+                                "type": "integer",
+                                "required": True,
+                                "min": 1,
+                            },
+                        },
+                    },
+                },
+            },
         },
         "internal_api": {
             "type": "dict",
@@ -560,21 +1209,17 @@ class ConfigurationLoader:
                 "host": "127.0.0.1",
                 "port": 8080,
                 "auth_token": "",
-                "rate_limit": 100
+                "rate_limit": 100,
             },
             "schema": {
                 "enabled": {"type": "boolean", "default": False},
                 "host": {"type": "string", "default": "127.0.0.1"},
                 "port": {"type": "integer", "default": 8080, "min": 1, "max": 65535},
                 "auth_token": {"type": "string", "default": ""},
-                "rate_limit": {"type": "integer", "default": 100, "min": 1}
-            }
+                "rate_limit": {"type": "integer", "default": 100, "min": 1},
+            },
         },
-        "ssl_config_example": {
-            "type": "dict",
-            "default": {},
-            "allow_unknown": True
-        },
+        "ssl_config_example": {"type": "dict", "default": {}, "allow_unknown": True},
     }
 
     def __init__(self, config_file: str):
@@ -659,7 +1304,12 @@ class LoggingConfigurator:
         if override_level is not None:
             self.log_level = override_level
         else:
-            self.log_level = getattr(logging, self.config.get("level", "INFO").upper())
+            level_name = self.config.get("level", "INFO").upper()
+            try:
+                self.log_level = getattr(logging, level_name)
+            except AttributeError:
+                print(f"Warning: Invalid log level '{level_name}', using INFO")
+                self.log_level = logging.INFO
         self.log_file = self.config.get("file", "tinycti.log")
         self.max_size = self._parse_size(self.config.get("max_size", "10MB"))
         self.backup_count = self.config.get("backup_count", 5)
@@ -675,7 +1325,11 @@ class LoggingConfigurator:
 
     def _parse_duration(self, duration_str: str) -> int:
         """Parse une durée au format '24h', '7d', etc. et retourne en secondes"""
-        return parse_duration(duration_str)
+        try:
+            return parse_duration(duration_str)
+        except ValueError:
+            # Valeur par défaut en cas d'erreur
+            return 3600  # 1 heure
 
     def setup_main_logger(self):
         """Configure le logger principal avec rotation et compression"""
@@ -685,22 +1339,20 @@ class LoggingConfigurator:
 
         # Handler rotatif pour le fichier principal
         file_handler = RotatingFileHandler(
-            self.log_file,
-            maxBytes=self.max_size,
-            backupCount=self.backup_count
+            self.log_file, maxBytes=self.max_size, backupCount=self.backup_count
         )
-        
+
         # Handler pour la console
         console_handler = logging.StreamHandler()
-        
+
         # Format des messages
         formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         )
-        
+
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
-        
+
         # Configuration du logger root
         logging.root.setLevel(self.log_level)
         logging.root.addHandler(file_handler)
@@ -712,32 +1364,36 @@ class LoggingConfigurator:
 
     def _setup_log_compression(self):
         """Configure la compression automatique des logs"""
+
         def compress_old_logs():
             """Compresse les anciens logs"""
             import glob
-            import threading
             import time
-            
+
             while True:
                 try:
                     # Recherche les fichiers de log à compresser
                     log_pattern = f"{self.log_file}.*"
                     for log_file in glob.glob(log_pattern):
-                        if not log_file.endswith('.gz') and log_file != self.log_file:
+                        if not log_file.endswith(".gz") and log_file != self.log_file:
                             # Vérifie l'âge du fichier
                             file_age = time.time() - os.path.getmtime(log_file)
-                            compress_after_seconds = self._parse_duration(self.compress_after)
-                            
+                            compress_after_seconds = self._parse_duration(
+                                self.compress_after
+                            )
+
                             if file_age > compress_after_seconds:
                                 try:
-                                    with open(log_file, 'rb') as f_in:
-                                        with gzip.open(f"{log_file}.gz", 'wb') as f_out:
+                                    with open(log_file, "rb") as f_in:
+                                        with gzip.open(f"{log_file}.gz", "wb") as f_out:
                                             f_out.write(f_in.read())
                                     os.remove(log_file)
                                     logging.info(f"Log compressé: {log_file}")
                                 except Exception as e:
-                                    logging.error(f"Erreur compression log {log_file}: {e}")
-                    
+                                    logging.error(
+                                        f"Erreur compression log {log_file}: {e}"
+                                    )
+
                     # Nettoyage des anciens logs selon retention_days
                     retention_seconds = self.retention_days * 86400
                     for log_file in glob.glob(f"{log_pattern}.gz"):
@@ -748,10 +1404,10 @@ class LoggingConfigurator:
                                 logging.info(f"Log ancien supprimé: {log_file}")
                             except Exception as e:
                                 logging.error(f"Erreur suppression log {log_file}: {e}")
-                                
+
                 except Exception as e:
                     logging.error(f"Erreur dans la compression automatique: {e}")
-                
+
                 # Attendre une heure avant le prochain cycle
                 time.sleep(3600)
 
@@ -763,21 +1419,19 @@ class LoggingConfigurator:
         """Configure le logger d'audit avec rotation"""
         if not self.audit_enabled:
             return None
-            
+
         audit_logger = logging.getLogger("tinycti.audit")
         audit_logger.setLevel(logging.INFO)
-        
+
         # Handler rotatif pour l'audit
         audit_handler = RotatingFileHandler(
-            self.audit_file,
-            maxBytes=self.max_size,
-            backupCount=self.backup_count
+            self.audit_file, maxBytes=self.max_size, backupCount=self.backup_count
         )
-        
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         audit_handler.setFormatter(formatter)
         audit_logger.addHandler(audit_handler)
-        
+
         return audit_logger
 
 
@@ -787,85 +1441,415 @@ class LoggingConfigurator:
 
 
 class RetentionManager:
-    """Gestionnaire des transitions entre buckets selon la politique de rétention"""
+    """Gestionnaire intelligent des transitions entre buckets selon la politique de rétention"""
 
-    def __init__(self, storage: "IOCStorage", retention_policy: Dict[str, Any]):
+    def __init__(
+        self, config: Dict[str, Any], storage: "IOCStorage", logger: logging.Logger
+    ):
+        self.config = config
         self.storage = storage
-        self.policy = retention_policy
-        self.logger = logging.getLogger(f"{__name__}.RetentionManager")
+        self.logger = logger
+        self.policy = config.get("retention", {})
+
+        # Nouveau gestionnaire de buckets intelligent
+        self.threat_bucket_manager = ThreatBucketManager()
+
+        # Compatibilité ascendante avec l'ancien système
+        self.bucket_priorities = {
+            RetentionBucket.LIVE: 1,
+            RetentionBucket.CHAUD: 2,
+            RetentionBucket.TIEDE: 3,
+            RetentionBucket.FROID: 4,
+        }
+
+        # Configuration des règles de source pour classification automatique
+        source_config = config.get(
+            "source_confidence",
+            {
+                # Sources très fiables
+                "alienvault": ConfidenceLevel.HIGH,
+                "malwaredomainlist": ConfidenceLevel.HIGH,
+                "abuse.ch": ConfidenceLevel.HIGH,
+                "spamhaus": ConfidenceLevel.CONFIRMED,
+                # Sources modérément fiables
+                "openphish": ConfidenceLevel.MEDIUM,
+                "phishtank": ConfidenceLevel.MEDIUM,
+                "urlhaus": ConfidenceLevel.MEDIUM,
+                # Sources expérimentales
+                "emerging": ConfidenceLevel.LOW,
+                "experimental": ConfidenceLevel.UNKNOWN,
+            },
+        )
+
+        # Convertit les chaînes en enums si nécessaire
+        self.source_confidence_mapping = {}
+        for source, confidence in source_config.items():
+            if isinstance(confidence, str):
+                # Mapping des chaînes vers les enums
+                confidence_mapping = {
+                    "confirmed": ConfidenceLevel.CONFIRMED,
+                    "high": ConfidenceLevel.HIGH,
+                    "medium": ConfidenceLevel.MEDIUM,
+                    "low": ConfidenceLevel.LOW,
+                    "unknown": ConfidenceLevel.UNKNOWN,
+                }
+                self.source_confidence_mapping[source] = confidence_mapping.get(
+                    confidence, ConfidenceLevel.UNKNOWN
+                )
+            else:
+                self.source_confidence_mapping[source] = confidence
+
+        # Configuration des niveaux de menace par type d'IOC
+        ioc_threat_config = config.get(
+            "ioc_threats",
+            {
+                IOCType.HASH_SHA256: ThreatLevel.HIGH,  # Malware signatures
+                IOCType.HASH_MD5: ThreatLevel.HIGH,  # Malware signatures
+                IOCType.IPV4: ThreatLevel.MEDIUM,  # C&C servers, scanners
+                IOCType.DOMAIN: ThreatLevel.MEDIUM,  # Malicious domains
+                IOCType.URL: ThreatLevel.MEDIUM,  # Phishing, malware download
+                IOCType.EMAIL: ThreatLevel.LOW,  # Spam, phishing emails
+            },
+        )
+
+        # Convertit les chaînes en enums si nécessaire
+        self.ioc_threat_mapping = {}
+        for ioc_type, threat_level in ioc_threat_config.items():
+            # Convertit les chaînes IOC types en enums
+            if isinstance(ioc_type, str):
+                ioc_type_mapping = {
+                    "hash_sha256": IOCType.HASH_SHA256,
+                    "hash_md5": IOCType.HASH_MD5,
+                    "ipv4": IOCType.IPV4,
+                    "domain": IOCType.DOMAIN,
+                    "url": IOCType.URL,
+                    "email": IOCType.EMAIL,
+                }
+                enum_ioc_type = ioc_type_mapping.get(ioc_type, IOCType.DOMAIN)
+            else:
+                enum_ioc_type = ioc_type
+
+            # Convertit les chaînes threat levels en enums
+            if isinstance(threat_level, str):
+                threat_level_mapping = {
+                    "high": ThreatLevel.HIGH,
+                    "medium": ThreatLevel.MEDIUM,
+                    "low": ThreatLevel.LOW,
+                    "info": ThreatLevel.INFO,
+                }
+                enum_threat_level = threat_level_mapping.get(
+                    threat_level, ThreatLevel.MEDIUM
+                )
+            else:
+                enum_threat_level = threat_level
+
+            self.ioc_threat_mapping[enum_ioc_type] = enum_threat_level
 
     def _parse_duration(self, duration_str: str) -> int:
         """Parse une durée au format '24h', '7d', etc. et retourne en secondes"""
-        return parse_duration(duration_str)
+        try:
+            return parse_duration(duration_str)
+        except ValueError:
+            # Valeur par défaut en cas d'erreur
+            return 3600  # 1 heure
 
-    def process_transitions(self):
-        """Traite toutes les transitions selon la politique"""
+    def enrich_ioc_metadata(self, ioc: IOC) -> IOC:
+        """Enrichit automatiquement les métadonnées d'un IOC"""
+
+        # Classification automatique selon la source
+        source_lower = ioc.source.lower()
+        for source_pattern, confidence in self.source_confidence_mapping.items():
+            if source_pattern in source_lower:
+                ioc.confidence_level = confidence
+                break
+
+        # Classification du niveau de menace selon le type
+        if ioc.threat_level == ThreatLevel.INFO:  # Seulement si pas déjà défini
+            ioc.threat_level = self.ioc_threat_mapping.get(ioc.type, ThreatLevel.INFO)
+
+        # Détermination du bucket optimal
+        current_bucket = getattr(ioc, "bucket", None)
+        if hasattr(ioc, "bucket"):
+            current_threat_bucket = ioc.bucket
+        else:
+            # Conversion depuis l'ancien système
+            retention_to_threat = {
+                RetentionBucket.LIVE: ThreatBucket.CRITICAL,
+                RetentionBucket.CHAUD: ThreatBucket.ACTIVE,
+                RetentionBucket.TIEDE: ThreatBucket.WATCH,
+                RetentionBucket.FROID: ThreatBucket.ARCHIVE,
+            }
+            current_threat_bucket = retention_to_threat.get(
+                ioc.retention, ThreatBucket.EMERGING
+            )
+
+        optimal_bucket = self.threat_bucket_manager.determine_bucket(
+            ioc, current_threat_bucket
+        )
+        ioc.bucket = optimal_bucket
+
+        # Tags automatiques selon le contexte
+        auto_tags = []
+
+        # Tags selon le niveau de confiance
+        if ioc.confidence_level == ConfidenceLevel.CONFIRMED:
+            auto_tags.append("verified")
+        elif ioc.confidence_level == ConfidenceLevel.LOW:
+            auto_tags.append("low-confidence")
+
+        # Tags selon le niveau de menace
+        if ioc.threat_level == ThreatLevel.HIGH:
+            auto_tags.append("high-threat")
+        elif ioc.threat_level == ThreatLevel.LOW:
+            auto_tags.append("low-threat")
+
+        # Tags selon le type d'IOC
+        if ioc.type in [IOCType.HASH_MD5, IOCType.HASH_SHA256, IOCType.HASH_SHA1]:
+            auto_tags.append("malware-signature")
+        elif ioc.type in [IOCType.IPV4, IOCType.IPV6]:
+            auto_tags.append("network-ioc")
+        elif ioc.type in [IOCType.DOMAIN, IOCType.URL]:
+            auto_tags.append("web-ioc")
+
+        # Tags selon la source
+        if "phish" in source_lower:
+            auto_tags.append("phishing")
+        elif "malware" in source_lower:
+            auto_tags.append("malware")
+        elif "spam" in source_lower:
+            auto_tags.append("spam")
+
+        # Fusion avec les tags existants
+        if hasattr(ioc, "tags") and ioc.tags:
+            ioc.tags = list(set(ioc.tags + auto_tags))
+        else:
+            ioc.tags = auto_tags
+
+        # TTL automatique selon le bucket
+        if not ioc.ttl_hours:
+            ttl_mapping = {
+                ThreatBucket.CRITICAL: 24 * 7,  # 1 semaine
+                ThreatBucket.ACTIVE: 24 * 14,  # 2 semaines
+                ThreatBucket.WATCH: 24 * 30,  # 1 mois
+                ThreatBucket.INTEL: 24 * 90,  # 3 mois
+                ThreatBucket.EMERGING: 24 * 3,  # 3 jours
+                ThreatBucket.ARCHIVE: 24 * 365,  # 1 an
+                ThreatBucket.DEPRECATED: 24 * 7,  # 1 semaine avant suppression
+            }
+            ioc.ttl_hours = ttl_mapping.get(ioc.bucket, 24 * 30)
+
+        return ioc
+
+    def process_intelligent_transitions(self):
+        """Traite les transitions intelligentes selon la nouvelle logique"""
+        conn = None
         try:
             conn = sqlite3.connect(self.storage.db_path)
-            
+
+            # Récupère tous les IOCs pour évaluation
+            cursor = conn.execute(
+                """
+                SELECT value, type, source, bucket, first_seen, last_seen 
+                FROM iocs
+            """
+            )
+
+            transitions_made = 0
+            promotions_made = 0
+            archived_count = 0
+
+            for row in cursor.fetchall():
+                value, ioc_type, source, bucket, first_seen, last_seen = row
+
+                # Reconstitue l'IOC (simulation)
+                ioc = IOC(
+                    value=value,
+                    type=IOCType(ioc_type),
+                    source=source,
+                    first_seen=(
+                        datetime.fromisoformat(first_seen)
+                        if isinstance(first_seen, str)
+                        else first_seen
+                    ),
+                    last_seen=(
+                        datetime.fromisoformat(last_seen)
+                        if isinstance(last_seen, str)
+                        else last_seen
+                    ),
+                )
+
+                # Conversion bucket legacy vers nouveau système
+                if hasattr(ThreatBucket, bucket.upper()):
+                    current_bucket = ThreatBucket(bucket)
+                else:
+                    # Mappage legacy
+                    legacy_mapping = {
+                        "live": ThreatBucket.CRITICAL,
+                        "chaud": ThreatBucket.ACTIVE,
+                        "tiede": ThreatBucket.WATCH,
+                        "froid": ThreatBucket.ARCHIVE,
+                    }
+                    current_bucket = legacy_mapping.get(bucket, ThreatBucket.EMERGING)
+
+                ioc.bucket = current_bucket
+
+                # Enrichissement automatique
+                ioc = self.enrich_ioc_metadata(ioc)
+
+                # Vérification des transitions
+                if self.threat_bucket_manager.should_transition(ioc, current_bucket):
+                    new_bucket = self.threat_bucket_manager.get_next_bucket(
+                        ioc, current_bucket
+                    )
+
+                    if new_bucket:
+                        # Mise à jour en base
+                        conn.execute(
+                            """
+                            UPDATE iocs 
+                            SET bucket = ?, last_seen = ?
+                            WHERE value = ? AND type = ?
+                        """,
+                            (new_bucket.value, datetime.now(), value, ioc_type),
+                        )
+
+                        # Déplacement des fichiers
+                        self._move_ioc_between_buckets(
+                            value, ioc_type, bucket, new_bucket.value
+                        )
+
+                        if self.threat_bucket_manager.get_bucket_priority(
+                            new_bucket
+                        ) < self.threat_bucket_manager.get_bucket_priority(
+                            current_bucket
+                        ):
+                            promotions_made += 1
+                        elif new_bucket == ThreatBucket.ARCHIVE:
+                            archived_count += 1
+
+                        transitions_made += 1
+
+                        self.logger.info(
+                            f"IOC {value} transitionné de {current_bucket.value} vers {new_bucket.value}"
+                        )
+
+            conn.commit()
+
+            self.logger.info(
+                f"Traitement intelligent terminé: {transitions_made} transitions, {promotions_made} promotions, {archived_count} archivages"
+            )
+
+        except Exception as e:
+            self.logger.error(
+                f"Erreur lors du traitement intelligent des transitions: {e}"
+            )
+            raise RetentionError(
+                f"Échec du traitement intelligent des transitions: {e}"
+            ) from e
+        finally:
+            if conn:
+                conn.close()
+
+    def process_transitions(self):
+        """Traite toutes les transitions selon la politique (nouveau système intelligent)"""
+
+        # Utilise le nouveau système intelligent par défaut
+        if self.config.get("use_intelligent_buckets", True):
+            return self.process_intelligent_transitions()
+
+        # Fallback vers l'ancien système pour compatibilité
+        return self._process_legacy_transitions()
+
+    def _process_legacy_transitions(self):
+        """Traite les transitions selon l'ancien système (compatibilité)"""
+        conn = None
+        try:
+            conn = sqlite3.connect(self.storage.db_path)
+
             # Live → Chaud
             live_to_chaud = self.policy.get("live_to_chaud", "24h")
-            self._transition_bucket(conn, "live", "chaud", 
-                                  self._parse_duration(live_to_chaud))
-            
-            # Chaud → Tiede  
+            self._transition_bucket(
+                conn, "live", "chaud", self._parse_duration(live_to_chaud)
+            )
+
+            # Chaud → Tiede
             chaud_to_tiede = self.policy.get("chaud_to_tiede", "7d")
-            self._transition_bucket(conn, "chaud", "tiede",
-                                  self._parse_duration(chaud_to_tiede))
-            
+            self._transition_bucket(
+                conn, "chaud", "tiede", self._parse_duration(chaud_to_tiede)
+            )
+
             # Tiede → Froid
             tiede_to_froid = self.policy.get("tiede_to_froid", "30d")
-            self._transition_bucket(conn, "tiede", "froid", 
-                                  self._parse_duration(tiede_to_froid))
-            
+            self._transition_bucket(
+                conn, "tiede", "froid", self._parse_duration(tiede_to_froid)
+            )
+
             # Suppression des anciens IOCs du bucket froid
             froid_retention = self.policy.get("froid_retention", "365d")
             self._cleanup_old_iocs(conn, self._parse_duration(froid_retention))
-            
-            conn.close()
+
             self.logger.info("Cycle de rétention terminé avec succès")
-            
+
         except Exception as e:
             self.logger.error(f"Erreur lors du traitement des transitions: {e}")
             raise RetentionError(f"Échec du traitement des transitions: {e}") from e
+        finally:
+            if conn:
+                conn.close()
 
-    def _transition_bucket(self, conn: sqlite3.Connection, from_bucket: str, to_bucket: str, max_age_seconds: int):
+    def _transition_bucket(
+        self,
+        conn: sqlite3.Connection,
+        from_bucket: str,
+        to_bucket: str,
+        max_age_seconds: int,
+    ):
         """Effectue la transition d'un bucket vers un autre"""
         cutoff_time = datetime.now() - timedelta(seconds=max_age_seconds)
-        
-        cursor = conn.execute("""
+
+        cursor = conn.execute(
+            """
             SELECT value, type FROM iocs 
             WHERE bucket = ? AND last_seen < ?
-        """, (from_bucket, cutoff_time))
-        
+        """,
+            (from_bucket, cutoff_time),
+        )
+
         candidates = cursor.fetchall()
-        
+
         if not candidates:
-            self.logger.debug(f"Aucun IOC à transitionner de {from_bucket} vers {to_bucket}")
+            self.logger.debug(
+                f"Aucun IOC à transitionner de {from_bucket} vers {to_bucket}"
+            )
             return
-        
+
         transitioned_count = 0
-        
+
         for value, ioc_type in candidates:
             try:
                 # Supprime des anciens fichiers
                 self._remove_from_file(from_bucket, ioc_type, value)
-                
-                # Ajoute aux nouveaux fichiers  
+
+                # Ajoute aux nouveaux fichiers
                 self._add_to_file(to_bucket, ioc_type, value)
-                
+
                 # Met à jour la DB
-                conn.execute("""
+                conn.execute(
+                    """
                     UPDATE iocs SET bucket = ? WHERE value = ? AND type = ?
-                """, (to_bucket, value, ioc_type))
-                
+                """,
+                    (to_bucket, value, ioc_type),
+                )
+
                 transitioned_count += 1
-                
+
             except Exception as e:
                 self.logger.error(f"Erreur transition IOC {value} ({ioc_type}): {e}")
-        
+
         conn.commit()
-        self.logger.info(f"Transitionné {transitioned_count}/{len(candidates)} IOCs de {from_bucket} vers {to_bucket}")
+        self.logger.info(
+            f"Transitionné {transitioned_count}/{len(candidates)} IOCs de {from_bucket} vers {to_bucket}"
+        )
 
     def _remove_from_file(self, bucket: str, ioc_type: str, value: str):
         """Supprime un IOC d'un fichier de bucket (utilise les opérations atomiques)"""
@@ -886,81 +1870,98 @@ class RetentionManager:
     def _cleanup_old_iocs(self, conn: sqlite3.Connection, max_age_seconds: int):
         """Supprime les IOCs trop anciens du bucket froid"""
         cutoff_time = datetime.now() - timedelta(seconds=max_age_seconds)
-        
-        cursor = conn.execute("""
+
+        cursor = conn.execute(
+            """
             SELECT value, type FROM iocs 
             WHERE bucket = 'froid' AND last_seen < ?
-        """, (cutoff_time,))
-        
+        """,
+            (cutoff_time,),
+        )
+
         candidates = cursor.fetchall()
-        
+
         if not candidates:
             self.logger.debug("Aucun IOC ancien à supprimer du bucket froid")
             return
-        
+
         deleted_count = 0
-        
+
         for value, ioc_type in candidates:
             try:
                 # Supprime du fichier
                 self._remove_from_file("froid", ioc_type, value)
-                
+
                 # Supprime de la DB
-                conn.execute("""
+                conn.execute(
+                    """
                     DELETE FROM iocs WHERE value = ? AND type = ?
-                """, (value, ioc_type))
-                
+                """,
+                    (value, ioc_type),
+                )
+
                 deleted_count += 1
-                
+
             except Exception as e:
                 self.logger.error(f"Erreur suppression IOC {value} ({ioc_type}): {e}")
-        
+
         conn.commit()
-        self.logger.info(f"Supprimé {deleted_count}/{len(candidates)} IOCs anciens du stockage")
+        self.logger.info(
+            f"Supprimé {deleted_count}/{len(candidates)} IOCs anciens du stockage"
+        )
 
     def audit_duplicates_across_buckets(self) -> Dict[str, Any]:
         """Audit des doublons potentiels entre buckets"""
         try:
             duplicates = {}
             total_duplicates = 0
-            
+
             for ioc_type in IOCType:
                 type_duplicates = []
                 iocs_by_bucket = {}
-                
+
                 # Charge tous les IOCs de ce type depuis les fichiers
                 for bucket in RetentionBucket:
-                    file_path = self.storage.output_dir / bucket.value / f"{ioc_type.value}.txt"
+                    file_path = (
+                        self.storage.output_dir / bucket.value / f"{ioc_type.value}.txt"
+                    )
                     if file_path.exists():
-                        with open(file_path, 'r') as f:
+                        with open(file_path, "r") as f:
                             iocs_by_bucket[bucket.value] = set(
-                                line.strip() for line in f 
+                                line.strip()
+                                for line in f
                                 if line.strip() and not line.startswith("#")
                             )
-                
+
                 # Détecte les intersections
                 buckets = list(iocs_by_bucket.keys())
                 for i, bucket1 in enumerate(buckets):
-                    for bucket2 in buckets[i+1:]:
-                        common_iocs = iocs_by_bucket[bucket1].intersection(iocs_by_bucket[bucket2])
+                    for bucket2 in buckets[i + 1 :]:
+                        common_iocs = iocs_by_bucket[bucket1].intersection(
+                            iocs_by_bucket[bucket2]
+                        )
                         if common_iocs:
-                            type_duplicates.append({
-                                "bucket_1": bucket1,
-                                "bucket_2": bucket2, 
-                                "duplicates": list(common_iocs)[:10],  # Limite l'affichage
-                                "count": len(common_iocs)
-                            })
+                            type_duplicates.append(
+                                {
+                                    "bucket_1": bucket1,
+                                    "bucket_2": bucket2,
+                                    "duplicates": list(common_iocs)[
+                                        :10
+                                    ],  # Limite l'affichage
+                                    "count": len(common_iocs),
+                                }
+                            )
                             total_duplicates += len(common_iocs)
-                
+
                 if type_duplicates:
                     duplicates[ioc_type.value] = type_duplicates
-            
+
             return {
                 "duplicates_by_type": duplicates,
                 "total_duplicates": total_duplicates,
-                "audit_time": datetime.now().isoformat()
+                "audit_time": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             self.logger.error(f"Erreur lors de l'audit des doublons: {e}")
             return {"error": str(e), "error_type": "RetentionError"}
@@ -971,63 +1972,332 @@ class RetentionManager:
             # Hiérarchie des priorités (live > chaud > tiede > froid)
             bucket_priority = {"live": 0, "chaud": 1, "tiede": 2, "froid": 3}
             fixed_count = 0
-            
+
             conn = sqlite3.connect(self.storage.db_path)
-            
+
             for ioc_type in IOCType:
                 iocs_by_bucket = {}
-                
+
                 # Charge tous les IOCs de ce type
                 for bucket in RetentionBucket:
-                    file_path = self.storage.output_dir / bucket.value / f"{ioc_type.value}.txt"
+                    file_path = (
+                        self.storage.output_dir / bucket.value / f"{ioc_type.value}.txt"
+                    )
                     if file_path.exists():
-                        with open(file_path, 'r') as f:
+                        with open(file_path, "r") as f:
                             iocs_by_bucket[bucket.value] = set(
-                                line.strip() for line in f 
+                                line.strip()
+                                for line in f
                                 if line.strip() and not line.startswith("#")
                             )
-                
+
                 # Trouve tous les IOCs uniques
                 all_iocs = set()
                 for bucket_iocs in iocs_by_bucket.values():
                     all_iocs.update(bucket_iocs)
-                
+
                 # Pour chaque IOC, trouve le bucket le plus prioritaire
                 for ioc_value in all_iocs:
                     buckets_containing = [
-                        bucket for bucket, iocs in iocs_by_bucket.items() 
+                        bucket
+                        for bucket, iocs in iocs_by_bucket.items()
                         if ioc_value in iocs
                     ]
-                    
+
                     if len(buckets_containing) > 1:
                         # Trouve le bucket le plus prioritaire
-                        priority_bucket = min(buckets_containing, key=lambda b: bucket_priority[b])
-                        
+                        priority_bucket = min(
+                            buckets_containing, key=lambda b: bucket_priority[b]
+                        )
+
                         # Supprime des autres buckets
                         for bucket in buckets_containing:
                             if bucket != priority_bucket:
-                                self._remove_from_file(bucket, ioc_type.value, ioc_value)
+                                self._remove_from_file(
+                                    bucket, ioc_type.value, ioc_value
+                                )
                                 fixed_count += 1
-                        
+
                         # Met à jour la DB
-                        conn.execute("""
+                        conn.execute(
+                            """
                             UPDATE iocs SET bucket = ? 
                             WHERE value = ? AND type = ?
-                        """, (priority_bucket, ioc_value, ioc_type.value))
-            
+                        """,
+                            (priority_bucket, ioc_value, ioc_type.value),
+                        )
+
             conn.commit()
             conn.close()
-            
+
             self.logger.info(f"Corrigé {fixed_count} doublons")
             return {
                 "fixed_duplicates": fixed_count,
                 "status": "success",
-                "fix_time": datetime.now().isoformat()
+                "fix_time": datetime.now().isoformat(),
             }
-            
+
         except Exception as e:
             self.logger.error(f"Erreur lors de la correction des doublons: {e}")
             return {"error": str(e), "error_type": "RetentionError"}
+
+    def _get_bucket_priority(self, bucket: RetentionBucket) -> int:
+        """Retourne la priorité numérique d'un bucket"""
+        return self.bucket_priorities.get(bucket, 999)
+
+    def _should_promote_ioc(
+        self, existing_bucket: RetentionBucket, new_bucket: RetentionBucket
+    ) -> bool:
+        """Détermine si un IOC doit être promu vers un bucket de priorité plus élevée"""
+        return self._get_bucket_priority(new_bucket) < self._get_bucket_priority(
+            existing_bucket
+        )
+
+    def check_duplicate_iocs(self) -> List[Dict[str, Any]]:
+        """Vérifie la présence de doublons dans la base de données"""
+        try:
+            return self._find_duplicates_in_db()
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la vérification des doublons: {e}")
+            return []
+
+    def _find_duplicates_in_db(self) -> List[Dict[str, Any]]:
+        """Trouve les doublons dans la base de données"""
+        try:
+            conn = sqlite3.connect(self.storage.db_path)
+            cursor = conn.execute(
+                """
+                SELECT value, type, GROUP_CONCAT(bucket) as buckets
+                FROM iocs 
+                GROUP BY value, type 
+                HAVING COUNT(*) > 1
+            """
+            )
+
+            duplicates = []
+            for row in cursor.fetchall():
+                value, ioc_type, buckets_str = row
+                buckets = buckets_str.split(",") if buckets_str else []
+                duplicates.append(
+                    {"value": value, "type": ioc_type, "buckets": buckets}
+                )
+
+            conn.close()
+            return duplicates
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la recherche de doublons: {e}")
+            return []
+
+    def fix_duplicate_iocs(self) -> Dict[str, Any]:
+        """Corrige les IOCs dupliqués en gardant la priorité la plus élevée"""
+        try:
+            duplicates = self.check_duplicate_iocs()
+            fixed_count = 0
+            failed_count = 0
+
+            for duplicate in duplicates:
+                try:
+                    if self._resolve_duplicate(duplicate):
+                        fixed_count += 1
+                    else:
+                        failed_count += 1
+                except Exception as e:
+                    self.logger.error(
+                        f"Erreur lors de la résolution du doublon {duplicate['value']}: {e}"
+                    )
+                    failed_count += 1
+
+            return {
+                "total_duplicates": len(duplicates),
+                "fixed_count": fixed_count,
+                "failed_count": failed_count,
+                "status": "success" if failed_count == 0 else "partial",
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la correction des doublons: {e}")
+            return {"error": str(e), "status": "error"}
+
+    def _resolve_duplicate(self, duplicate: Dict[str, Any]) -> bool:
+        """Résout un doublon en gardant la priorité la plus élevée"""
+        try:
+            value = duplicate["value"]
+            ioc_type = duplicate["type"]
+            buckets = duplicate["buckets"]
+
+            # Trouve le bucket de plus haute priorité
+            # Convertit les chaînes en enums
+            bucket_enums = []
+            for b in buckets:
+                if isinstance(b, str):
+                    # Mapping des chaînes vers les enums (ancien + nouveau)
+                    mapping = {
+                        # Nouveaux noms
+                        "active": RetentionBucket.CHAUD,
+                        "critical": RetentionBucket.LIVE,
+                        "watch": RetentionBucket.TIEDE,
+                        "archive": RetentionBucket.FROID,
+                        # Anciens noms (compatibilité)
+                        "live": RetentionBucket.LIVE,
+                        "chaud": RetentionBucket.CHAUD,
+                        "tiede": RetentionBucket.TIEDE,
+                        "froid": RetentionBucket.FROID,
+                    }
+                    bucket_enums.append(mapping.get(b, RetentionBucket.FROID))
+                else:
+                    bucket_enums.append(b)
+
+            priority_bucket_enum = min(
+                bucket_enums, key=lambda b: self._get_bucket_priority(b)
+            )
+            priority_bucket = priority_bucket_enum.value
+
+            # Supprime des autres buckets
+            conn = sqlite3.connect(self.storage.db_path)
+            conn.execute(
+                """
+                DELETE FROM iocs 
+                WHERE value = ? AND type = ? AND bucket != ?
+            """,
+                (value, ioc_type, priority_bucket),
+            )
+            conn.commit()
+            conn.close()
+
+            return True
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la résolution du doublon: {e}")
+            return False
+
+    def get_retention_stats(self) -> Dict[str, Any]:
+        """Retourne les statistiques de rétention"""
+        try:
+            conn = sqlite3.connect(self.storage.db_path)
+            cursor = conn.execute(
+                """
+                SELECT bucket, COUNT(*) as count
+                FROM iocs
+                GROUP BY bucket
+            """
+            )
+
+            stats = {}
+            for row in cursor.fetchall():
+                bucket, count = row
+                stats[bucket] = count
+
+            conn.close()
+            return {
+                "bucket_counts": stats,
+                "total_iocs": sum(stats.values()),
+                "timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la récupération des stats: {e}")
+            return {"error": str(e)}
+
+    def audit_retention_system(self) -> Dict[str, Any]:
+        """Effectue un audit complet du système de rétention"""
+        try:
+            stats = self.get_retention_stats()
+            duplicates = self.check_duplicate_iocs()
+
+            return {
+                "stats": stats,
+                "duplicates_found": len(duplicates),
+                "duplicates": duplicates[:10],  # Limite l'affichage
+                "audit_timestamp": datetime.now().isoformat(),
+                "status": "success",
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'audit: {e}")
+            return {"error": str(e), "status": "error"}
+
+    def process_retentions(self) -> Dict[str, Any]:
+        """Lance le processus de rétention"""
+        try:
+            self.process_transitions()
+            return {"status": "success", "timestamp": datetime.now().isoformat()}
+        except Exception as e:
+            self.logger.error(f"Erreur lors du processus de rétention: {e}")
+            return {"error": str(e), "status": "error"}
+
+    def process_bucket_transitions(self) -> Dict[str, Any]:
+        """Traite les transitions entre buckets"""
+        return self.process_retentions()
+
+    def find_iocs_for_transition(
+        self, from_bucket: str, to_bucket: str, max_age_seconds: int
+    ) -> List[Dict[str, Any]]:
+        """Trouve les IOCs candidats pour une transition"""
+        try:
+            cutoff_time = datetime.now() - timedelta(seconds=max_age_seconds)
+            conn = sqlite3.connect(self.storage.db_path)
+            cursor = conn.execute(
+                """
+                SELECT value, type, last_seen FROM iocs 
+                WHERE bucket = ? AND last_seen < ?
+            """,
+                (from_bucket, cutoff_time),
+            )
+
+            candidates = []
+            for row in cursor.fetchall():
+                value, ioc_type, last_seen = row
+                candidates.append(
+                    {"value": value, "type": ioc_type, "last_seen": last_seen}
+                )
+
+            conn.close()
+            return candidates
+        except Exception as e:
+            self.logger.error(
+                f"Erreur lors de la recherche d'IOCs pour transition: {e}"
+            )
+            return []
+
+    def check_bucket_integrity(self) -> Dict[str, Any]:
+        """Vérifie l'intégrité des buckets"""
+        try:
+            issues = []
+            conn = sqlite3.connect(self.storage.db_path)
+
+            # Vérifie que tous les buckets existent
+            for bucket in RetentionBucket:
+                cursor = conn.execute(
+                    "SELECT COUNT(*) FROM iocs WHERE bucket = ?", (bucket.value,)
+                )
+                count = cursor.fetchone()[0]
+                if count == 0:
+                    issues.append(f"Bucket {bucket.value} is empty")
+
+            conn.close()
+
+            return {
+                "issues": issues,
+                "status": "success" if not issues else "issues_found",
+                "check_timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la vérification d'intégrité: {e}")
+            return {"error": str(e), "status": "error"}
+
+    def check_retention_rules_compliance(self) -> Dict[str, Any]:
+        """Vérifie la conformité aux règles de rétention"""
+        try:
+            compliance_issues = []
+
+            # Vérifications de base
+            if not self.policy:
+                compliance_issues.append("No retention policy configured")
+
+            return {
+                "compliance_issues": compliance_issues,
+                "status": "compliant" if not compliance_issues else "non_compliant",
+                "check_timestamp": datetime.now().isoformat(),
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la vérification de conformité: {e}")
+            return {"error": str(e), "status": "error"}
 
 
 # ===============================
@@ -1131,40 +2401,83 @@ class APIKeyManager:
 # ===============================
 
 
-class IOCType(Enum):
-    """Types d'IOCs supportés"""
-
-    IPV4 = "ipv4"
-    IPV6 = "ipv6"
-    DOMAIN = "domain"
-    URL = "url"
-    HASH_MD5 = "hash_md5"
-    HASH_SHA1 = "hash_sha1"
-    HASH_SHA256 = "hash_sha256"
-    HASH_SHA512 = "hash_sha512"
-    EMAIL = "email"
-
-
-class RetentionBucket(Enum):
-    """Buckets de rétention"""
-
-    LIVE = "live"
-    CHAUD = "chaud"
-    TIEDE = "tiede"
-    FROID = "froid"
-
-
 @dataclass
 class IOC:
-    """Représente un IOC avec ses métadonnées"""
+    """Représente un IOC avec ses métadonnées enrichies"""
 
     value: str
     type: IOCType
     source: str
     first_seen: datetime = field(default_factory=datetime.now)
     last_seen: datetime = field(default_factory=datetime.now)
-    retention: RetentionBucket = RetentionBucket.LIVE
-    confidence: float = 1.0
+
+    # Nouvelle logique de buckets intelligents
+    bucket: ThreatBucket = ThreatBucket.EMERGING
+    threat_level: ThreatLevel = ThreatLevel.INFO
+    confidence_level: ConfidenceLevel = ConfidenceLevel.UNKNOWN
+
+    # Métadonnées avancées
+    tags: list = field(default_factory=list)
+    ttl_hours: Optional[int] = None  # Time-to-live spécifique
+    verified: bool = False  # IOC vérifié manuellement
+    false_positive: bool = False  # Marqué comme faux positif
+
+    # Compatibilité ascendante (pour les tests)
+    retention: Optional[RetentionBucket] = None  # Paramètre legacy
+    confidence: float = field(init=False)
+
+    def __post_init__(self):
+        """Assure la compatibilité ascendante et valide les données"""
+        # Validation des données d'entrée
+        if not self.value or not isinstance(self.value, str) or not self.value.strip():
+            raise ValueError("IOC value must be a non-empty string")
+
+        if not isinstance(self.type, IOCType):
+            raise ValueError("IOC type must be a valid IOCType")
+
+        if (
+            not self.source
+            or not isinstance(self.source, str)
+            or not self.source.strip()
+        ):
+            raise ValueError("IOC source must be a non-empty string")
+
+        # Normalize values
+        self.value = self.value.strip()
+        self.source = self.source.strip()
+
+        # Si retention est fourni (legacy), l'utiliser pour déterminer le bucket
+        if self.retention is not None:
+            # Mappage inverse: de l'ancien vers le nouveau
+            retention_to_bucket = {
+                RetentionBucket.LIVE: ThreatBucket.CRITICAL,
+                RetentionBucket.CHAUD: ThreatBucket.ACTIVE,
+                RetentionBucket.TIEDE: ThreatBucket.WATCH,
+                RetentionBucket.FROID: ThreatBucket.ARCHIVE,
+            }
+            self.bucket = retention_to_bucket.get(self.retention, ThreatBucket.EMERGING)
+        else:
+            # Mappage du nouveau bucket vers l'ancien
+            bucket_mapping = {
+                ThreatBucket.CRITICAL: RetentionBucket.LIVE,
+                ThreatBucket.ACTIVE: RetentionBucket.CHAUD,
+                ThreatBucket.WATCH: RetentionBucket.TIEDE,
+                ThreatBucket.INTEL: RetentionBucket.TIEDE,
+                ThreatBucket.EMERGING: RetentionBucket.CHAUD,
+                ThreatBucket.ARCHIVE: RetentionBucket.FROID,
+                ThreatBucket.DEPRECATED: RetentionBucket.FROID,
+            }
+            self.retention = bucket_mapping.get(self.bucket, RetentionBucket.LIVE)
+
+        # Mappage de confidence_level vers confidence (float)
+        confidence_mapping = {
+            ConfidenceLevel.CONFIRMED: 1.0,
+            ConfidenceLevel.HIGH: 0.8,
+            ConfidenceLevel.MEDIUM: 0.6,
+            ConfidenceLevel.LOW: 0.4,
+            ConfidenceLevel.UNKNOWN: 0.2,
+        }
+        self.confidence = confidence_mapping.get(self.confidence_level, 0.5)
 
     def __hash__(self):
         return hash((self.value, self.type))
@@ -1174,6 +2487,201 @@ class IOC:
             return False
         return self.value == other.value and self.type == other.type
 
+    def is_operational(self) -> bool:
+        """Vérifie si l'IOC est dans un bucket opérationnel"""
+        return self.bucket in [
+            ThreatBucket.CRITICAL,
+            ThreatBucket.ACTIVE,
+            ThreatBucket.WATCH,
+        ]
+
+    def is_expired(self) -> bool:
+        """Vérifie si l'IOC a expiré selon son TTL"""
+        if not self.ttl_hours:
+            return False
+        expiry_time = self.last_seen + timedelta(hours=self.ttl_hours)
+        return datetime.now() > expiry_time
+
+    def should_be_archived(self) -> bool:
+        """Détermine si l'IOC devrait être archivé"""
+        if self.false_positive:
+            return True
+        if self.is_expired():
+            return True
+        # Logique métier : IOCs de confiance faible et anciens
+        if (
+            self.confidence_level == ConfidenceLevel.LOW
+            and (datetime.now() - self.last_seen).days > 30
+        ):
+            return True
+        return False
+
+
+class ThreatBucketManager:
+    """Gestionnaire intelligent des buckets de threat intelligence"""
+
+    def __init__(self):
+        # Priorités des buckets (plus faible = plus prioritaire)
+        self.bucket_priorities = {
+            ThreatBucket.CRITICAL: 1,
+            ThreatBucket.ACTIVE: 2,
+            ThreatBucket.WATCH: 3,
+            ThreatBucket.INTEL: 4,
+            ThreatBucket.EMERGING: 5,
+            ThreatBucket.ARCHIVE: 6,
+            ThreatBucket.DEPRECATED: 7,
+        }
+
+        # Règles de transition automatique
+        self.transition_rules = {
+            # IOCs critiques restent critiques mais peuvent être rétrogradés
+            ThreatBucket.CRITICAL: {
+                "max_age_days": 30,
+                "fallback_bucket": ThreatBucket.ACTIVE,
+                "conditions": ["not verified", "low confidence"],
+            },
+            # IOCs actifs peuvent être promus ou rétrogradés
+            ThreatBucket.ACTIVE: {
+                "max_age_days": 14,
+                "fallback_bucket": ThreatBucket.WATCH,
+                "promotion_bucket": ThreatBucket.CRITICAL,
+                "conditions": ["multiple sources", "high confidence"],
+            },
+            # IOCs surveillés évoluent selon l'activité
+            ThreatBucket.WATCH: {
+                "max_age_days": 7,
+                "fallback_bucket": ThreatBucket.INTEL,
+                "promotion_bucket": ThreatBucket.ACTIVE,
+                "conditions": ["recent activity", "confirmed threats"],
+            },
+            # IOCs émergents nécessitent validation
+            ThreatBucket.EMERGING: {
+                "max_age_days": 3,
+                "fallback_bucket": ThreatBucket.ARCHIVE,
+                "promotion_bucket": ThreatBucket.WATCH,
+                "conditions": ["manual verification", "source reputation"],
+            },
+            # Intelligence générale moins prioritaire
+            ThreatBucket.INTEL: {
+                "max_age_days": 60,
+                "fallback_bucket": ThreatBucket.ARCHIVE,
+                "conditions": ["research value", "correlation potential"],
+            },
+            # Archive pour recherche historique
+            ThreatBucket.ARCHIVE: {
+                "max_age_days": 365,
+                "fallback_bucket": ThreatBucket.DEPRECATED,
+                "conditions": ["storage optimization"],
+            },
+            # Prêts pour suppression
+            ThreatBucket.DEPRECATED: {
+                "max_age_days": 30,
+                "fallback_bucket": None,  # Suppression
+                "conditions": ["cleanup process"],
+            },
+        }
+
+    def determine_bucket(
+        self, ioc: IOC, existing_bucket: Optional[ThreatBucket] = None
+    ) -> ThreatBucket:
+        """Détermine le bucket optimal pour un IOC selon sa contexte"""
+
+        # IOCs marqués comme faux positifs
+        if ioc.false_positive:
+            return ThreatBucket.DEPRECATED
+
+        # IOCs expirés
+        if ioc.is_expired():
+            return ThreatBucket.ARCHIVE
+
+        # IOCs vérifiés manuellement avec haute confiance
+        if ioc.verified and ioc.confidence_level in [
+            ConfidenceLevel.CONFIRMED,
+            ConfidenceLevel.HIGH,
+        ]:
+            if ioc.threat_level == ThreatLevel.HIGH:
+                return ThreatBucket.CRITICAL
+            elif ioc.threat_level == ThreatLevel.MEDIUM:
+                return ThreatBucket.ACTIVE
+            else:
+                return ThreatBucket.WATCH
+
+        # Nouveaux IOCs de sources fiables
+        if not existing_bucket and ioc.confidence_level in [
+            ConfidenceLevel.HIGH,
+            ConfidenceLevel.CONFIRMED,
+        ]:
+            return (
+                ThreatBucket.ACTIVE
+                if ioc.threat_level == ThreatLevel.HIGH
+                else ThreatBucket.WATCH
+            )
+
+        # IOCs de sources peu fiables ou inconnues
+        if ioc.confidence_level in [ConfidenceLevel.LOW, ConfidenceLevel.UNKNOWN]:
+            return ThreatBucket.EMERGING
+
+        # Maintenir le bucket existant si approprié
+        if existing_bucket and not self.should_transition(ioc, existing_bucket):
+            return existing_bucket
+
+        # Par défaut : bucket émergent pour nouveaux IOCs
+        return ThreatBucket.EMERGING
+
+    def should_transition(self, ioc: IOC, current_bucket: ThreatBucket) -> bool:
+        """Détermine si un IOC doit changer de bucket"""
+        rules = self.transition_rules.get(current_bucket, {})
+        max_age_days = rules.get("max_age_days", float("inf"))
+
+        # Vérification de l'âge
+        age_days = (datetime.now() - ioc.last_seen).days
+        if age_days >= max_age_days:
+            return True
+
+        # Conditions spéciales pour promotion
+        if ioc.verified and ioc.confidence_level == ConfidenceLevel.CONFIRMED:
+            return True
+
+        # Conditions pour rétrogradation
+        if ioc.false_positive or ioc.is_expired():
+            return True
+
+        return False
+
+    def get_next_bucket(
+        self, ioc: IOC, current_bucket: ThreatBucket
+    ) -> Optional[ThreatBucket]:
+        """Retourne le prochain bucket pour un IOC selon les règles"""
+        if not self.should_transition(ioc, current_bucket):
+            return None
+
+        rules = self.transition_rules.get(current_bucket, {})
+
+        # Promotion si conditions remplies
+        if (
+            ioc.verified
+            and ioc.confidence_level
+            in [ConfidenceLevel.CONFIRMED, ConfidenceLevel.HIGH]
+            and "promotion_bucket" in rules
+        ):
+            return ThreatBucket(rules["promotion_bucket"])
+
+        # Fallback normal
+        fallback = rules.get("fallback_bucket")
+        return ThreatBucket(fallback) if fallback else None
+
+    def get_bucket_priority(self, bucket: ThreatBucket) -> int:
+        """Retourne la priorité numérique d'un bucket"""
+        return self.bucket_priorities.get(bucket, 999)
+
+    def should_promote(
+        self, existing_bucket: ThreatBucket, new_bucket: ThreatBucket
+    ) -> bool:
+        """Détermine si un IOC doit être promu vers un bucket plus prioritaire"""
+        return self.get_bucket_priority(new_bucket) < self.get_bucket_priority(
+            existing_bucket
+        )
+
 
 class IOCClassificationError(Exception):
     """Erreur de classification d'IOC"""
@@ -1182,7 +2690,7 @@ class IOCClassificationError(Exception):
 
 
 class IOCClassifier:
-    """Classificateur d'IOCs avec validation avancée"""
+    """Classificateur d'IOCs avec validation avancée et extraction de patterns"""
 
     # Patterns regex stricts pour éviter les faux positifs
     PATTERNS = {
@@ -1190,12 +2698,12 @@ class IOCClassifier:
             r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
         ),
         IOCType.IPV6: re.compile(
-            r"^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$"
+            r"^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$"
         ),
         IOCType.DOMAIN: re.compile(
-            r"^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.[a-zA-Z]{2,}$"
+            r"^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.[a-zA-Z]{2,}$"
         ),
-        IOCType.URL: re.compile(r'^https?://[^\s<>"\']+$'),
+        IOCType.URL: re.compile(r'^(https?|ftp)://[^\s<>"\']+$'),
         IOCType.HASH_MD5: re.compile(r"^[a-fA-F0-9]{32}$"),
         IOCType.HASH_SHA1: re.compile(r"^[a-fA-F0-9]{40}$"),
         IOCType.HASH_SHA256: re.compile(r"^[a-fA-F0-9]{64}$"),
@@ -1215,9 +2723,10 @@ class IOCClassifier:
         re.compile(r"^255\.255\.255\.255$"),
     ]
 
-    def __init__(self):
+    def __init__(self, whitelist_file: str = "ip_whitelist.yaml"):
         self.logger = logging.getLogger(f"{__name__}.IOCClassifier")
         self.stats = {"classified": 0, "rejected": 0, "errors": 0}
+        self.whitelist = self._load_whitelist(whitelist_file)
 
     def classify_ioc(self, value: str) -> Optional[IOCType]:
         """Classifie un IOC et retourne son type"""
@@ -1240,7 +2749,9 @@ class IOCClassifier:
             # Fallback sur les regex
             for ioc_type, pattern in self.PATTERNS.items():
                 if pattern.match(value):
-                    if ioc_type == IOCType.IPV4 and self._is_private_ip(value):
+                    if ioc_type == IOCType.IPV4 and (self._is_private_ip(value) or self._is_whitelisted_ip(value)):
+                        continue
+                    if ioc_type == IOCType.DOMAIN and self._is_whitelisted_domain(value):
                         continue
                     self.stats["classified"] += 1
                     return ioc_type
@@ -1257,16 +2768,16 @@ class IOCClassifier:
         """Classification avec iocextract (si disponible)"""
         try:
             import iocextract
-            
+
             # Test chaque type d'IOC
             if list(iocextract.extract_ipv4s([value])):
-                return IOCType.IPV4 if not self._is_private_ip(value) else None
+                return IOCType.IPV4 if not (self._is_private_ip(value) or self._is_whitelisted_ip(value)) else None
 
             if list(iocextract.extract_ipv6s([value])):
                 return IOCType.IPV6
 
             if list(iocextract.extract_domains([value])):
-                return IOCType.DOMAIN
+                return IOCType.DOMAIN if not self._is_whitelisted_domain(value) else None
 
             if list(iocextract.extract_urls([value])):
                 return IOCType.URL
@@ -1297,8 +2808,87 @@ class IOCClassifier:
                 return True
         return False
 
+    def _load_whitelist(self, whitelist_file: str) -> Dict[str, List[str]]:
+        """Charge la liste blanche depuis le fichier YAML"""
+        try:
+            whitelist_path = Path(whitelist_file)
+            if not whitelist_path.exists():
+                self.logger.warning(f"Fichier whitelist non trouvé: {whitelist_file}")
+                return {"public_whitelist": [], "domain_whitelist": []}
+            
+            with open(whitelist_path, 'r', encoding='utf-8') as f:
+                whitelist_data = yaml.safe_load(f)
+                
+            return {
+                "public_whitelist": whitelist_data.get("public_whitelist", []),
+                "domain_whitelist": whitelist_data.get("domain_whitelist", [])
+            }
+        except Exception as e:
+            self.logger.error(f"Erreur lors du chargement de la whitelist: {e}")
+            return {"public_whitelist": [], "domain_whitelist": []}
+
+    def _is_whitelisted_ip(self, ip: str) -> bool:
+        """Vérifie si une IP est dans la whitelist"""
+        return ip in self.whitelist["public_whitelist"]
+
+    def _is_whitelisted_domain(self, domain: str) -> bool:
+        """Vérifie si un domaine est dans la whitelist"""
+        domain_lower = domain.lower()
+        for whitelisted in self.whitelist["domain_whitelist"]:
+            if domain_lower == whitelisted.lower() or domain_lower.endswith(f".{whitelisted.lower()}"):
+                return True
+        return False
+
+    def extract_iocs_from_url(self, url: str) -> Dict[str, List[str]]:
+        """Extrait et nettoie les IOCs depuis une URL complète
+        Ex: http://122.56.54.121/test.exe -> {
+            'url': ['http://122.56.54.121/'],
+            'ipv4': ['122.56.54.121'],
+            'domain': []
+        }
+        """
+        extracted_iocs = {
+            'url': [],
+            'ipv4': [],
+            'ipv6': [],
+            'domain': []
+        }
+        
+        try:
+            from urllib.parse import urlparse
+            
+            parsed = urlparse(url)
+            
+            # Crée l'URL propre (sans path)
+            if parsed.port:
+                netloc = f"{parsed.netloc}"
+            else:
+                netloc = parsed.netloc
+                
+            clean_url = f"{parsed.scheme}://{netloc}/"
+            extracted_iocs['url'].append(clean_url)
+            
+            # Extrait le hostname/IP (sans port)
+            hostname = parsed.netloc.split(':')[0]
+            
+            # Vérifie si c'est une IP
+            if self.PATTERNS[IOCType.IPV4].match(hostname):
+                if not self._is_private_ip(hostname) and not self._is_whitelisted_ip(hostname):
+                    extracted_iocs['ipv4'].append(hostname)
+            elif self.PATTERNS[IOCType.IPV6].match(hostname):
+                extracted_iocs['ipv6'].append(hostname)
+            # Vérifie si c'est un domaine
+            elif self.PATTERNS[IOCType.DOMAIN].match(hostname):
+                if not self._is_whitelisted_domain(hostname):
+                    extracted_iocs['domain'].append(hostname)
+                    
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'extraction d'IOCs depuis l'URL {url}: {e}")
+            
+        return extracted_iocs
+
     def extract_iocs_from_text(self, text: str) -> List[str]:
-        """Extrait tous les IOCs d'un texte"""
+        """Extrait tous les IOCs d'un texte avec extraction de patterns URL"""
         if not text:
             return []
 
@@ -1311,10 +2901,40 @@ class IOCClassifier:
                 text = text[: 1024 * 1024]
 
             # Extraction avec iocextract
-            iocs.update(iocextract.extract_ipv4s([text]))
-            iocs.update(iocextract.extract_ipv6s([text]))
-            iocs.update(iocextract.extract_domains([text]))
-            iocs.update(iocextract.extract_urls([text]))
+            extracted_urls = list(iocextract.extract_urls([text]))
+            extracted_ipv4s = list(iocextract.extract_ipv4s([text]))
+            extracted_ipv6s = list(iocextract.extract_ipv6s([text]))
+            extracted_domains = list(iocextract.extract_domains([text]))
+            
+            # Traite les URLs pour extraire domaines/IPs supplémentaires et nettoyer les paths
+            for url in extracted_urls:
+                # Extrait les composants (URL nettoyée + IP/domaine)
+                extracted_components = self.extract_iocs_from_url(url)
+                # Ajoute l'URL nettoyée (sans path)
+                if extracted_components['url']:
+                    iocs.add(extracted_components['url'][0])
+                # Ajoute les IPs et domaines extraits
+                for ip in extracted_components['ipv4']:
+                    iocs.add(ip)
+                for ip in extracted_components['ipv6']:
+                    iocs.add(ip)
+                for domain in extracted_components['domain']:
+                    iocs.add(domain)
+            
+            # Filtre les IPs
+            for ip in extracted_ipv4s:
+                if not self._is_private_ip(ip) and not self._is_whitelisted_ip(ip):
+                    iocs.add(ip)
+                    
+            for ip in extracted_ipv6s:
+                iocs.add(ip)  # Les IPv6 sont généralement OK
+                
+            # Filtre les domaines
+            for domain in extracted_domains:
+                if not self._is_whitelisted_domain(domain):
+                    iocs.add(domain)
+            
+            # Ajoute les autres types sans filtrage spécial
             iocs.update(iocextract.extract_hashes([text]))
             iocs.update(iocextract.extract_emails([text]))
 
@@ -1401,37 +3021,38 @@ class HTTPPlugin(BasePlugin):
             # Utilise ExternalAPIClient pour une gestion SSL/auth robuste
             client_config = self.config.copy()
             client_config["url"] = url
-            
+
             # Ajoute une clé API si disponible
             api_key = self.api_manager.get_key(self.name)
             if api_key:
                 # Configure l'authentification API key
                 if "auth" not in client_config:
                     client_config["auth"] = {}
-                client_config["auth"].update({
-                    "type": "bearer",
-                    "token": api_key
-                })
-            
+                client_config["auth"].update({"type": "bearer", "token": api_key})
+
             client = ExternalAPIClient(client_config)
-            
+
             self.stats["requests_made"] += 1
             content = client.fetch_data()
-            
+
             # Crée un objet response-like pour compatibilité
-            mock_response = type('MockResponse', (), {
-                'text': content,
-                'content': content.encode('utf-8'),
-                'status_code': 200,
-                'headers': {'Content-Type': 'text/plain'}
-            })()
-            
-            self.stats["bytes_downloaded"] += len(content.encode('utf-8'))
+            mock_response = type(
+                "MockResponse",
+                (),
+                {
+                    "text": content,
+                    "content": content.encode("utf-8"),
+                    "status_code": 200,
+                    "headers": {"Content-Type": "text/plain"},
+                },
+            )()
+
+            self.stats["bytes_downloaded"] += len(content.encode("utf-8"))
             return mock_response
 
         except ExternalAPIError as e:
             self.stats["errors"] += 1
-            
+
             # Gestion spécifique des erreurs d'API key
             if "Unauthorized" in str(e) or "401" in str(e):
                 if api_key:
@@ -1447,10 +3068,12 @@ class HTTPPlugin(BasePlugin):
                 raise PluginError(f"Timeout pour {self.name}: {e}")
             else:
                 raise PluginError(f"Erreur API externe pour {self.name}: {e}")
-                
+
         except Exception as e:
             self.stats["errors"] += 1
-            raise PluginError(f"Erreur inattendue lors de la requête vers {self.name}: {e}")
+            raise PluginError(
+                f"Erreur inattendue lors de la requête vers {self.name}: {e}"
+            )
 
 
 class TextPlugin(HTTPPlugin):
@@ -1465,7 +3088,7 @@ class TextPlugin(HTTPPlugin):
     def parse(self, raw_data: str) -> List[IOC]:
         """Parse le texte brut et extrait les IOCs"""
         iocs = []
-        classifier = IOCClassifier()
+        classifier = IOCClassifier("ip_whitelist.yaml")
 
         try:
             lines = raw_data.split("\n")
@@ -1486,13 +3109,44 @@ class TextPlugin(HTTPPlugin):
                 # Classification directe de la ligne
                 ioc_type = classifier.classify_ioc(line)
                 if ioc_type:
-                    ioc = IOC(
-                        value=line.lower(),
-                        type=ioc_type,
-                        source=self.name,
-                        retention=RetentionBucket(self.config.get("retention", "live")),
-                    )
-                    iocs.append(ioc)
+                    # Pour les URLs, utilise l'extraction pour nettoyer les paths et extraire IPs
+                    if ioc_type == IOCType.URL:
+                        extracted_components = classifier.extract_iocs_from_url(line)
+                        # Ajoute l'URL nettoyée
+                        if extracted_components['url']:
+                            ioc = IOC(
+                                value=extracted_components['url'][0].lower(),
+                                type=IOCType.URL,
+                                source=self.name,
+                                retention=RetentionBucket(self.config.get("retention", "active")),
+                            )
+                            iocs.append(ioc)
+                        # Ajoute les IPs extraites
+                        for ip in extracted_components['ipv4']:
+                            ioc = IOC(
+                                value=ip.lower(),
+                                type=IOCType.IPV4,
+                                source=self.name,
+                                retention=RetentionBucket(self.config.get("retention", "active")),
+                            )
+                            iocs.append(ioc)
+                        # Ajoute les domaines extraits
+                        for domain in extracted_components['domain']:
+                            ioc = IOC(
+                                value=domain.lower(),
+                                type=IOCType.DOMAIN,
+                                source=self.name,
+                                retention=RetentionBucket(self.config.get("retention", "active")),
+                            )
+                            iocs.append(ioc)
+                    else:
+                        ioc = IOC(
+                            value=line.lower(),
+                            type=ioc_type,
+                            source=self.name,
+                            retention=RetentionBucket(self.config.get("retention", "live")),
+                        )
+                        iocs.append(ioc)
                 else:
                     # Extraction d'IOCs multiples dans la ligne
                     extracted = classifier.extract_iocs_from_text(line)
@@ -1532,7 +3186,7 @@ class CSVPlugin(HTTPPlugin):
     def parse(self, raw_data: str) -> List[IOC]:
         """Parse le CSV et extrait les IOCs"""
         iocs = []
-        classifier = IOCClassifier()
+        classifier = IOCClassifier("ip_whitelist.yaml")
 
         try:
             # Configuration CSV
@@ -1871,7 +3525,7 @@ class CSVPlugin(HTTPPlugin):
                 analysis["consistent_structure"] = max_cols == min_cols
 
                 # Analyse chaque colonne
-                classifier = IOCClassifier()
+                classifier = IOCClassifier("ip_whitelist.yaml")
                 for col_idx in range(max_cols):
                     col_analysis = {
                         "index": col_idx,
@@ -2017,7 +3671,7 @@ class JSONPlugin(HTTPPlugin):
     def parse(self, raw_data: str) -> List[IOC]:
         """Parse le JSON et extrait les IOCs"""
         iocs = []
-        classifier = IOCClassifier()
+        classifier = IOCClassifier("ip_whitelist.yaml")
 
         try:
             # Limite la taille des données JSON
@@ -2117,7 +3771,7 @@ class STIXPlugin(HTTPPlugin):
     def parse(self, raw_data: str) -> List[IOC]:
         """Parse le STIX et extrait les IOCs"""
         iocs = []
-        classifier = IOCClassifier()
+        classifier = IOCClassifier("ip_whitelist.yaml")
 
         try:
             # Parse le bundle STIX
@@ -2190,7 +3844,7 @@ class RSSPlugin(HTTPPlugin):
     def parse(self, raw_data: str) -> List[IOC]:
         """Parse le RSS et extrait les IOCs du contenu"""
         iocs = []
-        classifier = IOCClassifier()
+        classifier = IOCClassifier("ip_whitelist.yaml")
 
         try:
             feed = feedparser.parse(raw_data)
@@ -2459,10 +4113,16 @@ class IOCStorage:
     def store_iocs(self, iocs: List[IOC]) -> Dict[str, int]:
         """Stocke les IOCs avec déduplication"""
         if not iocs:
-            return {"total": 0, "new": 0, "duplicates": 0, "errors": 0}
+            return {"total": 0, "new": 0, "updated": 0, "duplicates": 0, "errors": 0}
 
         with self._lock:
-            stats = {"total": len(iocs), "new": 0, "duplicates": 0, "errors": 0}
+            stats = {
+                "total": len(iocs),
+                "new": 0,
+                "updated": 0,
+                "duplicates": 0,
+                "errors": 0,
+            }
 
             try:
                 conn = sqlite3.connect(self.db_path)
@@ -2478,12 +4138,18 @@ class IOCStorage:
                 # Traite chaque groupe
                 for (ioc_type, bucket), ioc_list in grouped.items():
                     try:
-                        new_iocs = self._deduplicate_iocs(conn, ioc_list)
+                        dedup_result = self._deduplicate_iocs(conn, ioc_list)
+                        new_iocs = dedup_result["new"]
+                        updated_iocs = dedup_result["updated"]
+
                         if new_iocs:
                             self._write_iocs_to_file(ioc_type, bucket, new_iocs)
                             stats["new"] += len(new_iocs)
 
-                        stats["duplicates"] += len(ioc_list) - len(new_iocs)
+                        stats["updated"] += len(updated_iocs)
+                        stats["duplicates"] += (
+                            len(ioc_list) - len(new_iocs) - len(updated_iocs)
+                        )
 
                     except Exception as e:
                         stats["errors"] += len(ioc_list)
@@ -2499,13 +4165,15 @@ class IOCStorage:
 
             return stats
 
-    def _deduplicate_iocs(self, conn: sqlite3.Connection, iocs: List[IOC]) -> List[IOC]:
+    def _deduplicate_iocs(
+        self, conn: sqlite3.Connection, iocs: List[IOC]
+    ) -> Dict[str, List[IOC]]:
         """Déduplique les IOCs contre la base de données avec gestion des transitions entre buckets"""
         new_iocs = []
         updated_iocs = []
         transitioned_iocs = []
         now = datetime.now()
-        
+
         # Hiérarchie des priorités des buckets (live > chaud > tiede > froid)
         bucket_priority = {"live": 0, "chaud": 1, "tiede": 2, "froid": 3}
 
@@ -2519,53 +4187,70 @@ class IOCStorage:
 
             if result:
                 existing_bucket, last_seen, first_seen = result
-                
+
                 # Gestion des transitions entre buckets
                 if existing_bucket != ioc.retention.value:
                     current_priority = bucket_priority.get(existing_bucket, 999)
                     new_priority = bucket_priority.get(ioc.retention.value, 999)
-                    
+
                     # Si le nouveau bucket est plus prioritaire (priorité plus faible)
                     if new_priority < current_priority:
                         # Promotion vers un bucket plus prioritaire
                         self._move_ioc_between_buckets(
-                            ioc.value, ioc.type.value, existing_bucket, ioc.retention.value
+                            ioc.value,
+                            ioc.type.value,
+                            existing_bucket,
+                            ioc.retention.value,
                         )
-                        
+
                         # Met à jour la base de données
                         conn.execute(
                             "UPDATE iocs SET bucket = ?, last_seen = ?, source = ? WHERE value = ? AND type = ?",
-                            (ioc.retention.value, now, ioc.source, ioc.value, ioc.type.value),
+                            (
+                                ioc.retention.value,
+                                now,
+                                ioc.source,
+                                ioc.value,
+                                ioc.type.value,
+                            ),
                         )
-                        
-                        transitioned_iocs.append({
-                            "value": ioc.value,
-                            "type": ioc.type.value,
-                            "from_bucket": existing_bucket,
-                            "to_bucket": ioc.retention.value,
-                            "reason": "promotion"
-                        })
-                        
-                        self.logger.info(f"IOC {ioc.value} promu de {existing_bucket} vers {ioc.retention.value}")
-                        
+
+                        transitioned_iocs.append(
+                            {
+                                "value": ioc.value,
+                                "type": ioc.type.value,
+                                "from_bucket": existing_bucket,
+                                "to_bucket": ioc.retention.value,
+                                "reason": "promotion",
+                            }
+                        )
+
+                        updated_iocs.append(ioc)
+
+                        self.logger.info(
+                            f"IOC {ioc.value} promu de {existing_bucket} vers {ioc.retention.value}"
+                        )
+
                     else:
                         # Conserve dans le bucket existant (plus prioritaire ou même priorité)
                         conn.execute(
                             "UPDATE iocs SET last_seen = ?, source = ? WHERE value = ? AND type = ?",
                             (now, ioc.source, ioc.value, ioc.type.value),
                         )
-                        
+
                         if new_priority > current_priority:
-                            self.logger.debug(f"IOC {ioc.value} conservé dans {existing_bucket} (priorité supérieure à {ioc.retention.value})")
+                            self.logger.debug(
+                                f"IOC {ioc.value} conservé dans {existing_bucket} (priorité supérieure à {ioc.retention.value})"
+                            )
+                        updated_iocs.append(ioc)
                 else:
                     # Même bucket, simple mise à jour
                     conn.execute(
                         "UPDATE iocs SET last_seen = ?, source = ? WHERE value = ? AND type = ?",
                         (now, ioc.source, ioc.value, ioc.type.value),
                     )
-                
-                updated_iocs.append(ioc)
-                
+                    updated_iocs.append(ioc)
+
             else:
                 # Nouvel IOC
                 conn.execute(
@@ -2582,24 +4267,28 @@ class IOCStorage:
                 new_iocs.append(ioc)
 
         conn.commit()
-        
+
         # Log des statistiques
         if transitioned_iocs:
             self.logger.info(f"Transitions effectuées: {len(transitioned_iocs)}")
-            
-        return new_iocs + updated_iocs
 
-    def _move_ioc_between_buckets(self, value: str, ioc_type: str, from_bucket: str, to_bucket: str):
+        return {"new": new_iocs, "updated": updated_iocs}
+
+    def _move_ioc_between_buckets(
+        self, value: str, ioc_type: str, from_bucket: str, to_bucket: str
+    ):
         """Déplace un IOC entre buckets avec opérations atomiques"""
         try:
             # Atomic removal from old bucket
             self._atomic_remove_from_file(from_bucket, ioc_type, value)
-            
+
             # Atomic addition to new bucket
             self._atomic_add_to_file(to_bucket, ioc_type, value)
-                
+
         except Exception as e:
-            self.logger.error(f"Erreur lors du déplacement de l'IOC {value} de {from_bucket} vers {to_bucket}: {e}")
+            self.logger.error(
+                f"Erreur lors du déplacement de l'IOC {value} de {from_bucket} vers {to_bucket}: {e}"
+            )
             raise StorageError(f"Échec du déplacement d'IOC entre buckets: {e}") from e
 
     def _write_iocs_to_file(
@@ -2615,7 +4304,7 @@ class IOCStorage:
 
             # Utilise atomic write pour éviter les corruptions
             self._atomic_write_iocs(file_path, iocs, bucket)
-            
+
             self.logger.debug(f"Écrit {len(iocs)} IOCs dans {file_path}")
 
         except Exception as e:
@@ -2637,50 +4326,55 @@ class IOCStorage:
     def _rotate_and_compress_file(self, file_path: Path, bucket: RetentionBucket):
         """Effectue la rotation avec compression selon la politique du bucket"""
         import gzip
-        
+
         try:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
+
             # Compression automatique pour buckets non-live
             if bucket != RetentionBucket.LIVE:
                 backup_path = file_path.with_suffix(f".{timestamp}.txt.gz")
-                
+
                 # Compresse le fichier existant
-                with open(file_path, 'rb') as f_in:
-                    with gzip.open(backup_path, 'wb') as f_out:
+                with open(file_path, "rb") as f_in:
+                    with gzip.open(backup_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
-                        
+
                 self.logger.info(f"Fichier compressé: {file_path} -> {backup_path}")
             else:
                 # Bucket live reste non compressé
                 backup_path = file_path.with_suffix(f".{timestamp}.txt")
                 shutil.move(str(file_path), str(backup_path))
-                self.logger.info(f"Rotation sans compression: {file_path} -> {backup_path}")
-            
+                self.logger.info(
+                    f"Rotation sans compression: {file_path} -> {backup_path}"
+                )
+
             # Recrée le fichier vide
             file_path.touch()
 
         except Exception as e:
-            self.logger.error(f"Erreur lors de la rotation/compression du fichier {file_path}: {e}")
+            self.logger.error(
+                f"Erreur lors de la rotation/compression du fichier {file_path}: {e}"
+            )
 
-    def _atomic_write_iocs(self, file_path: Path, iocs: List[IOC], bucket: RetentionBucket):
+    def _atomic_write_iocs(
+        self, file_path: Path, iocs: List[IOC], bucket: RetentionBucket
+    ):
         """Écrit les IOCs de manière atomique avec format approprié selon le bucket"""
-        import tempfile
         import os
-        
+
         # Crée le répertoire parent si nécessaire
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Utilise un fichier temporaire pour écriture atomique
-        temp_file = file_path.with_suffix('.tmp')
-        
+        temp_file = file_path.with_suffix(".tmp")
+
         try:
             # Charge le contenu existant
             existing_content = ""
             if file_path.exists():
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     existing_content = f.read()
-            
+
             # Prepare le nouveau contenu
             new_lines = []
             for ioc in iocs:
@@ -2690,17 +4384,17 @@ class IOCStorage:
                 else:
                     # Autres buckets peuvent avoir des métadonnées optionnelles
                     new_lines.append(f"{ioc.value}\n")
-            
+
             # Écrit atomiquement
-            with open(temp_file, 'w', encoding='utf-8') as f:
+            with open(temp_file, "w", encoding="utf-8") as f:
                 f.write(existing_content)
                 f.writelines(new_lines)
                 f.flush()
                 os.fsync(f.fileno())  # Force l'écriture sur disque
-            
+
             # Déplacement atomique
             os.replace(str(temp_file), str(file_path))
-            
+
         except Exception as e:
             # Nettoie le fichier temporaire en cas d'erreur
             if temp_file.exists():
@@ -2709,20 +4403,19 @@ class IOCStorage:
 
     def _atomic_remove_from_file(self, bucket: str, ioc_type: str, value: str):
         """Supprime un IOC d'un fichier de manière atomique"""
-        import tempfile
         import os
-        
+
         file_path = self.output_dir / bucket / f"{ioc_type}.txt"
-        
+
         if not file_path.exists():
             return
-        
-        temp_file = file_path.with_suffix('.tmp')
+
+        temp_file = file_path.with_suffix(".tmp")
         found = False
-        
+
         try:
-            with open(file_path, 'r', encoding='utf-8') as f_in:
-                with open(temp_file, 'w', encoding='utf-8') as f_out:
+            with open(file_path, "r", encoding="utf-8") as f_in:
+                with open(temp_file, "w", encoding="utf-8") as f_out:
                     for line in f_in:
                         line_value = line.strip()
                         if line_value == value:
@@ -2731,14 +4424,14 @@ class IOCStorage:
                         f_out.write(line)
                     f_out.flush()
                     os.fsync(f_out.fileno())
-            
+
             if found:
                 # Déplacement atomique seulement si modification effectuée
                 os.replace(str(temp_file), str(file_path))
             else:
                 # Supprime le fichier temporaire si aucune modification
                 temp_file.unlink()
-            
+
         except Exception as e:
             if temp_file.exists():
                 temp_file.unlink()
@@ -2747,35 +4440,35 @@ class IOCStorage:
     def _atomic_add_to_file(self, bucket: str, ioc_type: str, value: str):
         """Ajoute un IOC à un fichier de manière atomique avec vérification de doublon"""
         import os
-        
+
         file_path = self.output_dir / bucket / f"{ioc_type}.txt"
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Vérifie d'abord si l'IOC existe déjà
         if file_path.exists():
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 for line in f:
                     if line.strip() == value:
                         return  # Déjà présent
-        
+
         # Ajoute atomiquement
-        temp_file = file_path.with_suffix('.tmp')
-        
+        temp_file = file_path.with_suffix(".tmp")
+
         try:
             # Copie le contenu existant + nouveau IOC
-            with open(temp_file, 'w', encoding='utf-8') as f_out:
+            with open(temp_file, "w", encoding="utf-8") as f_out:
                 if file_path.exists():
-                    with open(file_path, 'r', encoding='utf-8') as f_in:
+                    with open(file_path, "r", encoding="utf-8") as f_in:
                         f_out.write(f_in.read())
-                
+
                 # Ajoute le nouvel IOC (format brut)
                 f_out.write(f"{value}\n")
                 f_out.flush()
                 os.fsync(f_out.fileno())
-            
+
             # Déplacement atomique
             os.replace(str(temp_file), str(file_path))
-            
+
         except Exception as e:
             if temp_file.exists():
                 temp_file.unlink()
@@ -2795,31 +4488,32 @@ class ExternalAPIClient:
         self.name = feed_config["name"]
         self.url = feed_config["url"]
         self.logger = logging.getLogger(f"{__name__}.ExternalAPIClient.{self.name}")
-        
+
         # Configuration SSL/TLS
         self.verify_ssl = feed_config.get("ssl", {}).get("verify", True)
         self.ssl_cert = feed_config.get("ssl", {}).get("cert_file")
         self.ssl_key = feed_config.get("ssl", {}).get("key_file")
         self.ca_bundle = feed_config.get("ssl", {}).get("ca_bundle")
-        
+
         # Configuration authentification
         self.auth_config = feed_config.get("auth", {})
         self.timeout = feed_config.get("timeout", 30)
         self.max_retries = feed_config.get("max_retries", 3)
         self.user_agent = feed_config.get("user_agent", "TinyCTI/1.0")
-        
+
         # Headers personnalisés
         self.custom_headers = feed_config.get("headers", {})
 
     def fetch_data(self) -> Optional[str]:
         """Récupère les données depuis l'API externe avec gestion SSL et auth"""
         session = requests.Session()
-        
+
         try:
             # Configuration SSL/TLS de production
             if not self.verify_ssl:
                 session.verify = False
                 import urllib3
+
                 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
                 self.logger.warning(f"SSL verification disabled for {self.name}")
             elif self.ca_bundle:
@@ -2827,13 +4521,13 @@ class ExternalAPIClient:
                 self.logger.debug(f"Using CA bundle: {self.ca_bundle}")
             else:
                 session.verify = True  # Verification SSL par défaut
-            
+
             # Certificats client
             if self.ssl_cert and self.ssl_key:
                 session.cert = (self.ssl_cert, self.ssl_key)
             elif self.ssl_cert:
                 session.cert = self.ssl_cert
-            
+
             # Configuration des tentatives
             retry_strategy = Retry(
                 total=self.max_retries,
@@ -2843,47 +4537,51 @@ class ExternalAPIClient:
             adapter = HTTPAdapter(max_retries=retry_strategy)
             session.mount("http://", adapter)
             session.mount("https://", adapter)
-            
+
             # Headers de base
             headers = {
                 "User-Agent": self.user_agent,
                 "Accept": "application/json, text/plain, */*",
-                "Accept-Encoding": "gzip, deflate"
+                "Accept-Encoding": "gzip, deflate",
             }
             headers.update(self.custom_headers)
-            
+
             # Authentification
             auth = self._setup_authentication(session)
-            
+
             # Requête
             self.logger.info(f"Récupération depuis {self.url}")
             response = session.get(
-                self.url,
-                headers=headers,
-                auth=auth,
-                timeout=self.timeout,
-                stream=True
+                self.url, headers=headers, auth=auth, timeout=self.timeout, stream=True
             )
-            
+
             response.raise_for_status()
-            
+
             # Gestion du contenu compressé
             content = response.text
             self.logger.info(f"Récupéré {len(content)} caractères depuis {self.name}")
-            
+
             return content
-            
+
         except requests.exceptions.SSLError as e:
-            self.logger.error(f"Erreur SSL lors de la récupération depuis {self.name}: {e}")
+            self.logger.error(
+                f"Erreur SSL lors de la récupération depuis {self.name}: {e}"
+            )
             raise ExternalAPIError(f"Erreur SSL: {e}") from e
         except requests.exceptions.Timeout as e:
-            self.logger.error(f"Timeout lors de la récupération depuis {self.name}: {e}")
+            self.logger.error(
+                f"Timeout lors de la récupération depuis {self.name}: {e}"
+            )
             raise ExternalAPIError(f"Timeout: {e}") from e
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"Erreur réseau lors de la récupération depuis {self.name}: {e}")
+            self.logger.error(
+                f"Erreur réseau lors de la récupération depuis {self.name}: {e}"
+            )
             raise ExternalAPIError(f"Erreur réseau: {e}") from e
         except Exception as e:
-            self.logger.error(f"Erreur inattendue lors de la récupération depuis {self.name}: {e}")
+            self.logger.error(
+                f"Erreur inattendue lors de la récupération depuis {self.name}: {e}"
+            )
             raise ExternalAPIError(f"Erreur inattendue: {e}") from e
         finally:
             session.close()
@@ -2891,7 +4589,7 @@ class ExternalAPIClient:
     def _setup_authentication(self, session: requests.Session) -> Optional[Any]:
         """Configure l'authentification selon le type"""
         auth_type = self.auth_config.get("type", "none")
-        
+
         if auth_type == "none":
             return None
         elif auth_type == "basic":
@@ -2899,6 +4597,7 @@ class ExternalAPIClient:
             password = self.auth_config.get("password")
             if username and password:
                 from requests.auth import HTTPBasicAuth
+
                 return HTTPBasicAuth(username, password)
         elif auth_type == "bearer":
             token = self.auth_config.get("token")
@@ -2914,7 +4613,7 @@ class ExternalAPIClient:
             access_token = self._get_oauth2_token()
             if access_token:
                 session.headers.update({"Authorization": f"Bearer {access_token}"})
-        
+
         return None
 
     def _get_oauth2_token(self) -> Optional[str]:
@@ -2923,22 +4622,22 @@ class ExternalAPIClient:
             client_id = self.auth_config.get("client_id")
             client_secret = self.auth_config.get("client_secret")
             token_url = self.auth_config.get("token_url")
-            
+
             if not all([client_id, client_secret, token_url]):
                 return None
-            
+
             data = {
                 "grant_type": "client_credentials",
                 "client_id": client_id,
-                "client_secret": client_secret
+                "client_secret": client_secret,
             }
-            
+
             response = requests.post(token_url, data=data, timeout=self.timeout)
             response.raise_for_status()
-            
+
             token_data = response.json()
             return token_data.get("access_token")
-            
+
         except Exception as e:
             self.logger.error(f"Erreur lors de la récupération du token OAuth2: {e}")
             return None
@@ -2946,6 +4645,7 @@ class ExternalAPIClient:
 
 class ExternalAPIError(Exception):
     """Erreur spécifique aux APIs externes"""
+
     pass
 
 
@@ -2956,8 +4656,10 @@ class ExternalAPIError(Exception):
 
 class InternalFileAPI:
     """API interne pour exposer les fichiers .txt des buckets"""
-    
-    def __init__(self, storage: "IOCStorage", config: Dict[str, Any], api_id: str = "default"):
+
+    def __init__(
+        self, storage: "IOCStorage", config: Dict[str, Any], api_id: str = "default"
+    ):
         self.storage = storage
         self.api_id = api_id
         self.config = config
@@ -2966,17 +4668,22 @@ class InternalFileAPI:
         self.port = self.config.get("port", 8080)
         self.auth_token = self.config.get("auth_token")
         self.rate_limit = self.config.get("rate_limit", 100)
-        self.buckets_filter = self.config.get("buckets", ["live", "chaud", "tiede", "froid"])
-        self.types_filter = self.config.get("types", ["ipv4", "ipv6", "domain", "url", "hash_md5", "hash_sha1", "hash_sha256"])
+        self.buckets_filter = self.config.get(
+            "buckets", ["live", "chaud", "tiede", "froid"]
+        )
+        self.types_filter = self.config.get(
+            "types",
+            ["ipv4", "ipv6", "domain", "url", "hash_md5", "hash_sha1", "hash_sha256"],
+        )
         self.logger = logging.getLogger(f"{__name__}.InternalFileAPI.{api_id}")
-        
+
         if self.enabled:
             self.app = Flask(__name__)
             self._setup_routes()
 
     def _setup_routes(self):
         """Configure les routes de l'API interne"""
-        
+
         @self.app.before_request
         def check_auth():
             """Vérifie l'authentification si configurée"""
@@ -2988,38 +4695,55 @@ class InternalFileAPI:
         @self.app.route("/buckets")
         def list_buckets():
             """Liste les buckets disponibles"""
-            return jsonify({
-                "buckets": ["live", "chaud", "tiede", "froid"],
-                "description": "Buckets d'IOCs disponibles"
-            })
+            return jsonify(
+                {
+                    "buckets": ["live", "chaud", "tiede", "froid"],
+                    "description": "Buckets d'IOCs disponibles",
+                }
+            )
 
         @self.app.route("/bucket/<bucket_name>/<ioc_type>.txt")
         def get_bucket_file(bucket_name: str, ioc_type: str):
             """Récupère le fichier .txt d'un bucket/type"""
+            # Sanitize inputs to prevent path traversal
+            from tinycti import SecurityValidator
+
+            bucket_name = SecurityValidator.sanitize_path(bucket_name)
+            ioc_type = SecurityValidator.sanitize_path(ioc_type)
+
+            if not bucket_name or not ioc_type:
+                return "Invalid path parameters", 400
+
             if bucket_name not in self.buckets_filter:
                 return f"Bucket {bucket_name} non autorisé sur cette API", 404
-            
+
             if ioc_type not in self.types_filter:
                 return f"Type {ioc_type} non autorisé sur cette API", 404
-            
+
             file_path = self.storage.output_dir / bucket_name / f"{ioc_type}.txt"
-            
+
+            # Ensure the resolved path is still within the expected directory
+            if not str(file_path.resolve()).startswith(
+                str(self.storage.output_dir.resolve())
+            ):
+                return "Invalid file path", 400
+
             if not file_path.exists():
                 return "Fichier non trouvé", 404
-            
+
             try:
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     content = f.read()
-                
+
                 return Response(
                     content,
-                    mimetype='text/plain',
+                    mimetype="text/plain",
                     headers={
-                        'Content-Disposition': f'attachment; filename="{bucket_name}_{ioc_type}.txt"',
-                        'X-Bucket': bucket_name,
-                        'X-IOC-Type': ioc_type,
-                        'X-Line-Count': str(len(content.splitlines()))
-                    }
+                        "Content-Disposition": f'attachment; filename="{bucket_name}_{ioc_type}.txt"',
+                        "X-Bucket": bucket_name,
+                        "X-IOC-Type": ioc_type,
+                        "X-Line-Count": str(len(content.splitlines())),
+                    },
                 )
             except Exception as e:
                 self.logger.error(f"Erreur lecture fichier {file_path}: {e}")
@@ -3030,31 +4754,31 @@ class InternalFileAPI:
             """Statistiques d'un bucket"""
             if bucket_name not in ["live", "chaud", "tiede", "froid"]:
                 return jsonify({"error": "Bucket non trouvé"}), 404
-            
+
             bucket_dir = self.storage.output_dir / bucket_name
             stats = {"bucket": bucket_name, "files": {}}
-            
+
             if bucket_dir.exists():
                 for file_path in bucket_dir.glob("*.txt"):
                     ioc_type = file_path.stem
                     try:
-                        with open(file_path, 'r') as f:
+                        with open(file_path, "r") as f:
                             line_count = sum(1 for line in f if line.strip())
                         stats["files"][ioc_type] = {
                             "count": line_count,
                             "size": file_path.stat().st_size,
-                            "modified": file_path.stat().st_mtime
+                            "modified": file_path.stat().st_mtime,
                         }
                     except Exception as e:
                         stats["files"][ioc_type] = {"error": str(e)}
-            
+
             return jsonify(stats)
 
     def start(self):
         """Démarre l'API interne"""
         if not self.enabled:
             return
-        
+
         try:
             self.logger.info(f"Démarrage API interne sur {self.host}:{self.port}")
             self.app.run(host=self.host, port=self.port, threaded=True, debug=False)
@@ -3064,26 +4788,28 @@ class InternalFileAPI:
 
 class MultipleInternalAPIManager:
     """Gestionnaire pour plusieurs APIs internes simultanées"""
-    
+
     def __init__(self, storage: "IOCStorage", config: Dict[str, Any]):
         self.storage = storage
         self.config = config
         self.apis = {}
         self.threads = {}
         self.logger = logging.getLogger(f"{__name__}.MultipleInternalAPIManager")
-        
+
         # Configuration des APIs multiples
         apis_config = config.get("internal_apis", {})
-        
+
         # API par défaut pour compatibilité
         if config.get("internal_api", {}).get("enabled", False):
-            self.apis["default"] = InternalFileAPI(storage, config.get("internal_api"), "default")
-        
+            self.apis["default"] = InternalFileAPI(
+                storage, config.get("internal_api"), "default"
+            )
+
         # APIs additionnelles
         for api_name, api_config in apis_config.items():
             if api_config.get("enabled", False):
                 self.apis[api_name] = InternalFileAPI(storage, api_config, api_name)
-    
+
     def start_all(self, background: bool = True):
         """Démarre toutes les APIs configurées"""
         for api_name, api in self.apis.items():
@@ -3092,10 +4818,12 @@ class MultipleInternalAPIManager:
                     thread = threading.Thread(target=api.start, daemon=True)
                     thread.start()
                     self.threads[api_name] = thread
-                    self.logger.info(f"API interne '{api_name}' démarrée sur {api.host}:{api.port}")
+                    self.logger.info(
+                        f"API interne '{api_name}' démarrée sur {api.host}:{api.port}"
+                    )
                 else:
                     api.start()
-    
+
     def get_status(self):
         """Retourne le statut de toutes les APIs"""
         status = {}
@@ -3106,7 +4834,7 @@ class MultipleInternalAPIManager:
                 "port": api.port,
                 "buckets": api.buckets_filter,
                 "types": api.types_filter,
-                "auth_protected": bool(api.auth_token)
+                "auth_protected": bool(api.auth_token),
             }
         return status
 
@@ -3118,7 +4846,7 @@ class MultipleInternalAPIManager:
 
 class IOCEmissionAPI:
     """API pour émettre des IOCs dans différents formats (STIX, RSS, JSON, TAXII)"""
-    
+
     def __init__(self, storage: "IOCStorage", config: Dict[str, Any]):
         self.storage = storage
         self.config = config.get("emission_api", {})
@@ -3128,14 +4856,14 @@ class IOCEmissionAPI:
         self.auth_token = self.config.get("auth_token")
         self.formats = self.config.get("formats", ["json", "stix", "rss", "taxii"])
         self.logger = logging.getLogger(f"{__name__}.IOCEmissionAPI")
-        
+
         if self.enabled:
             self.app = Flask(__name__)
             self._setup_emission_routes()
-    
+
     def _setup_emission_routes(self):
         """Configure les routes d'émission"""
-        
+
         @self.app.before_request
         def check_emission_auth():
             """Vérifie l'authentification si configurée"""
@@ -3143,73 +4871,87 @@ class IOCEmissionAPI:
                 auth_header = request.headers.get("Authorization")
                 if not auth_header or auth_header != f"Bearer {self.auth_token}":
                     return jsonify({"error": "Unauthorized"}), 401
-        
+
         @self.app.route("/formats")
         def list_emission_formats():
             """Liste les formats d'émission disponibles"""
-            return jsonify({
-                "formats": self.formats,
-                "endpoints": {
-                    "json": "/emit/json/<bucket>/<ioc_type>",
-                    "stix": "/emit/stix/<bucket>",
-                    "rss": "/emit/rss/<bucket>",
-                    "taxii": "/taxii/collections/<collection_id>/objects"
+            return jsonify(
+                {
+                    "formats": self.formats,
+                    "endpoints": {
+                        "json": "/emit/json/<bucket>/<ioc_type>",
+                        "stix": "/emit/stix/<bucket>",
+                        "rss": "/emit/rss/<bucket>",
+                        "taxii": "/taxii/collections/<collection_id>/objects",
+                    },
                 }
-            })
-        
+            )
+
         @self.app.route("/emit/json/<bucket>/<ioc_type>")
         def emit_json(bucket: str, ioc_type: str):
             """Émet les IOCs au format JSON structuré"""
             if "json" not in self.formats:
                 return jsonify({"error": "Format JSON non activé"}), 403
-            
+
             try:
                 file_path = self.storage.output_dir / bucket / f"{ioc_type}.txt"
                 if not file_path.exists():
                     return jsonify({"error": "Données non trouvées"}), 404
-                
+
                 iocs = []
-                with open(file_path, 'r') as f:
+                with open(file_path, "r") as f:
                     for line in f:
                         ioc_value = line.strip()
                         if ioc_value:
-                            iocs.append({
-                                "value": ioc_value,
-                                "type": ioc_type,
-                                "bucket": bucket,
-                                "timestamp": datetime.now().isoformat(),
-                                "source": "TinyCTI"
-                            })
-                
-                return jsonify({
-                    "indicators": iocs,
-                    "metadata": {
-                        "count": len(iocs),
-                        "bucket": bucket,
-                        "type": ioc_type,
-                        "generated": datetime.now().isoformat(),
-                        "format": "json"
+                            iocs.append(
+                                {
+                                    "value": ioc_value,
+                                    "type": ioc_type,
+                                    "bucket": bucket,
+                                    "timestamp": datetime.now().isoformat(),
+                                    "source": "TinyCTI",
+                                }
+                            )
+
+                return jsonify(
+                    {
+                        "indicators": iocs,
+                        "metadata": {
+                            "count": len(iocs),
+                            "bucket": bucket,
+                            "type": ioc_type,
+                            "generated": datetime.now().isoformat(),
+                            "format": "json",
+                        },
                     }
-                })
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
-        
+
         @self.app.route("/emit/stix/<bucket>")
         def emit_stix(bucket: str):
             """Émet les IOCs au format STIX 2.1"""
             if "stix" not in self.formats:
                 return jsonify({"error": "Format STIX non activé"}), 403
-            
+
             try:
                 stix_objects = []
-                
+
                 # Crée un bundle STIX
                 bundle_id = f"bundle--{uuid.uuid4()}"
-                
-                for ioc_type in ["ipv4", "ipv6", "domain", "url", "hash_md5", "hash_sha1", "hash_sha256"]:
+
+                for ioc_type in [
+                    "ipv4",
+                    "ipv6",
+                    "domain",
+                    "url",
+                    "hash_md5",
+                    "hash_sha1",
+                    "hash_sha256",
+                ]:
                     file_path = self.storage.output_dir / bucket / f"{ioc_type}.txt"
                     if file_path.exists():
-                        with open(file_path, 'r') as f:
+                        with open(file_path, "r") as f:
                             for line in f:
                                 ioc_value = line.strip()
                                 if ioc_value:
@@ -3221,28 +4963,26 @@ class IOCEmissionAPI:
                                         "created": datetime.now().isoformat() + "Z",
                                         "modified": datetime.now().isoformat() + "Z",
                                         "labels": ["malicious-activity"],
-                                        "pattern": self._create_stix_pattern(ioc_type, ioc_value),
-                                        "valid_from": datetime.now().isoformat() + "Z"
+                                        "pattern": self._create_stix_pattern(
+                                            ioc_type, ioc_value
+                                        ),
+                                        "valid_from": datetime.now().isoformat() + "Z",
                                     }
                                     stix_objects.append(indicator)
-                
+
                 # Crée le bundle STIX
-                bundle = {
-                    "type": "bundle",
-                    "id": bundle_id,
-                    "objects": stix_objects
-                }
-                
+                bundle = {"type": "bundle", "id": bundle_id, "objects": stix_objects}
+
                 return jsonify(bundle)
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
-        
+
         @self.app.route("/emit/rss/<bucket>")
         def emit_rss(bucket: str):
             """Émet les IOCs au format RSS"""
             if "rss" not in self.formats:
                 return "Format RSS non activé", 403
-            
+
             try:
                 # Génère un flux RSS avec les derniers IOCs
                 rss_template = """<?xml version="1.0" encoding="UTF-8"?>
@@ -3256,12 +4996,12 @@ class IOCEmissionAPI:
         {items}
     </channel>
 </rss>"""
-                
+
                 items = []
                 for ioc_type in ["ipv4", "ipv6", "domain", "url"]:
                     file_path = self.storage.output_dir / bucket / f"{ioc_type}.txt"
                     if file_path.exists():
-                        with open(file_path, 'r') as f:
+                        with open(file_path, "r") as f:
                             for line in f:
                                 ioc_value = line.strip()
                                 if ioc_value:
@@ -3269,57 +5009,59 @@ class IOCEmissionAPI:
         <item>
             <title>{ioc_type.upper()}: {ioc_value}</title>
             <description>IOC de type {ioc_type} dans le bucket {bucket}</description>
-                                    <pubDate>{datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT')}</pubDate>
+                                    <pubDate>{datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT")}</pubDate>
             <guid>{ioc_value}</guid>
         </item>"""
                                     items.append(item)
-                
+
                 rss_content = rss_template.format(
                     bucket=bucket,
                     host=self.host,
                     port=self.port,
-                    timestamp=datetime.now().strftime('%a, %d %b %Y %H:%M:%S GMT'),
-                    items=''.join(items)
+                    timestamp=datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT"),
+                    items="".join(items),
                 )
-                
-                return Response(rss_content, mimetype='application/rss+xml')
+
+                return Response(rss_content, mimetype="application/rss+xml")
             except Exception as e:
                 return f"Erreur: {e}", 500
-        
+
         @self.app.route("/taxii/collections")
         def list_taxii_collections():
             """Liste les collections TAXII disponibles"""
             if "taxii" not in self.formats:
                 return jsonify({"error": "Format TAXII non activé"}), 403
-            
+
             collections = []
             for bucket in ["live", "chaud", "tiede", "froid"]:
-                collections.append({
-                    "id": f"tinycti-{bucket}",
-                    "title": f"TinyCTI {bucket.title()} IOCs",
-                    "description": f"Collection d'IOCs du bucket {bucket}",
-                    "can_read": True,
-                    "can_write": False,
-                    "media_types": ["application/stix+json;version=2.1"]
-                })
-            
+                collections.append(
+                    {
+                        "id": f"tinycti-{bucket}",
+                        "title": f"TinyCTI {bucket.title()} IOCs",
+                        "description": f"Collection d'IOCs du bucket {bucket}",
+                        "can_read": True,
+                        "can_write": False,
+                        "media_types": ["application/stix+json;version=2.1"],
+                    }
+                )
+
             return jsonify({"collections": collections})
-        
+
         @self.app.route("/taxii/collections/<collection_id>/objects")
         def get_taxii_objects(collection_id: str):
             """Récupère les objets STIX d'une collection TAXII"""
             if "taxii" not in self.formats:
                 return jsonify({"error": "Format TAXII non activé"}), 403
-            
+
             # Extrait le bucket du collection_id
             if collection_id.startswith("tinycti-"):
                 bucket = collection_id.replace("tinycti-", "")
                 if bucket in ["live", "chaud", "tiede", "froid"]:
                     # Redirige vers l'endpoint STIX
                     return emit_stix(bucket)
-            
+
             return jsonify({"error": "Collection non trouvée"}), 404
-    
+
     def _create_stix_pattern(self, ioc_type: str, value: str) -> str:
         """Crée un pattern STIX selon le type d'IOC"""
         patterns = {
@@ -3329,15 +5071,15 @@ class IOCEmissionAPI:
             "url": f"[url:value = '{value}']",
             "hash_md5": f"[file:hashes.MD5 = '{value}']",
             "hash_sha1": f"[file:hashes.SHA-1 = '{value}']",
-            "hash_sha256": f"[file:hashes.SHA-256 = '{value}']"
+            "hash_sha256": f"[file:hashes.SHA-256 = '{value}']",
         }
         return patterns.get(ioc_type, f"[x-custom:value = '{value}']")
-    
+
     def start(self):
         """Démarre l'API d'émission"""
         if not self.enabled:
             return
-        
+
         try:
             self.logger.info(f"Démarrage API d'émission sur {self.host}:{self.port}")
             self.app.run(host=self.host, port=self.port, threaded=True, debug=False)
@@ -3391,35 +5133,14 @@ class NGFWExporter:
 
             if source_file.exists():
                 try:
-                    # Export NGFW avec format approprié selon le bucket
+                    # Export NGFW: format brut sans headers (firewalls lisent ligne par ligne)
                     with open(source_file, "r") as src, open(target_file, "w") as dst:
-                        # Pour bucket LIVE: format brut sans headers (copie directe)
-                        if bucket == RetentionBucket.LIVE:
-                            ioc_count = 0
-                            for line in src:
-                                line = line.strip()
-                                if line and not line.startswith("#"):
-                                    dst.write(f"{line}\n")
-                                    ioc_count += 1
-                        else:
-                            # Autres buckets: avec métadonnées NGFW
-                            dst.write(
-                                f"# TinyCTI NGFW Export - {datetime.now().isoformat()}\n"
-                            )
-                            dst.write(
-                                f"# Bucket: {bucket.value} - Type: {ioc_type.value}\n"
-                            )
-                            dst.write("# Format: One IOC per line\n")
-
-                            # Copie les IOCs
-                            ioc_count = 0
-                            for line in src:
-                                line = line.strip()
-                                if line and not line.startswith("#"):
-                                    dst.write(f"{line}\n")
-                                    ioc_count += 1
-
-                            dst.write(f"# Total IOCs: {ioc_count}\n")
+                        ioc_count = 0
+                        for line in src:
+                            line = line.strip()
+                            if line and not line.startswith("#"):
+                                dst.write(f"{line}\n")
+                                ioc_count += 1
 
                     self.logger.debug(f"Export NGFW: {source_file} -> {target_file}")
 
@@ -3510,23 +5231,25 @@ class TinyCTIAPI:
         self.app.secret_key = os.urandom(24)
         self.logger = logging.getLogger(f"{__name__}.TinyCTIAPI")
         self.server = None
-        
+
         # Configuration d'authentification et rate limiting
         self.auth_config = self.tinycti.config.get("authentication", {})
         self.api_config = self.tinycti.config.get("api", {})
-        
+
         # Setup rate limiting
         if self.api_config.get("auth", {}).get("rate_limit", {}).get("enabled", True):
             self.limiter = Limiter(
                 app=self.app,
                 key_func=get_remote_address,
-                default_limits=[f"{self.api_config.get('auth', {}).get('rate_limit', {}).get('requests_per_minute', 60)}/minute"]
+                default_limits=[
+                    f"{self.api_config.get('auth', {}).get('rate_limit', {}).get('requests_per_minute', 60)}/minute"
+                ],
             )
         else:
             self.limiter = None
-            
+
         # Audit logger - utilise celui configuré par LoggingConfigurator
-        if hasattr(self.tinycti, 'logging_configurator'):
+        if hasattr(self.tinycti, "logging_configurator"):
             self.audit_logger = self.tinycti.logging_configurator.setup_audit_logger()
         else:
             self.audit_logger = None
@@ -3538,7 +5261,9 @@ class TinyCTIAPI:
         """Log une action d'audit"""
         if self.audit_logger:
             client_ip = request.remote_addr if request else "unknown"
-            message = f"User: {user}, IP: {client_ip}, Action: {action}, Details: {details}"
+            message = (
+                f"User: {user}, IP: {client_ip}, Action: {action}, Details: {details}"
+            )
             self.audit_logger.info(message)
 
     def _verify_password(self, username: str, password: str) -> bool:
@@ -3546,59 +5271,57 @@ class TinyCTIAPI:
         users = self.auth_config.get("users", {})
         if username not in users:
             return False
-            
+
         stored_hash = users[username].get("password_hash", "")
         if not stored_hash:
             return False
-            
+
         try:
-            return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
+            return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
         except:
             return False
 
     def _require_auth(self, f):
         """Décorateur pour exiger l'authentification"""
+
         def decorated_function(*args, **kwargs):
             if not self.api_config.get("auth", {}).get("enabled", False):
                 return f(*args, **kwargs)
-                
+
             # Vérification de l'authentification par token ou session
-            auth_header = request.headers.get('Authorization')
-            if auth_header and auth_header.startswith('Bearer '):
-                token = auth_header.split(' ')[1]
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
                 if self._verify_token(token):
                     return f(*args, **kwargs)
-            
+
             # Vérification de l'authentification par session
-            if 'authenticated' in session and session['authenticated']:
+            if "authenticated" in session and session["authenticated"]:
                 return f(*args, **kwargs)
-                
+
             # Vérification de l'authentification par API password
             api_password = self.api_config.get("auth", {}).get("password", "")
-            if api_password and request.headers.get('X-API-Password') == api_password:
+            if api_password and request.headers.get("X-API-Password") == api_password:
                 return f(*args, **kwargs)
-                
+
             self._log_audit("AUTH_FAILED", details=f"Endpoint: {request.endpoint}")
             return jsonify({"error": "Authentication required"}), 401
-            
+
         decorated_function.__name__ = f.__name__
         return decorated_function
 
     def _verify_token(self, token: str) -> bool:
         """Vérifie un token JWT"""
         try:
-            jwt.decode(token, self.app.secret_key, algorithms=['HS256'])
+            jwt.decode(token, self.app.secret_key, algorithms=["HS256"])
             return True
         except:
             return False
 
     def _generate_token(self, username: str) -> str:
         """Génère un token JWT"""
-        payload = {
-            'username': username,
-            'exp': datetime.now() + timedelta(hours=24)
-        }
-        return jwt.encode(payload, self.app.secret_key, algorithm='HS256')
+        payload = {"username": username, "exp": datetime.now() + timedelta(hours=24)}
+        return jwt.encode(payload, self.app.secret_key, algorithm="HS256")
 
     def _setup_routes(self):
         """Configure les routes de l'API"""
@@ -3645,21 +5368,23 @@ class TinyCTIAPI:
                 data = request.get_json()
                 username = data.get("username", "")
                 password = data.get("password", "")
-                
+
                 if not username or not password:
                     self._log_audit("LOGIN_FAILED", details="Missing credentials")
                     return jsonify({"error": "Username and password required"}), 400
-                
+
                 if self._verify_password(username, password):
                     token = self._generate_token(username)
-                    session['authenticated'] = True
-                    session['username'] = username
+                    session["authenticated"] = True
+                    session["username"] = username
                     self._log_audit("LOGIN_SUCCESS", user=username)
                     return jsonify({"token": token, "message": "Login successful"})
                 else:
-                    self._log_audit("LOGIN_FAILED", user=username, details="Invalid credentials")
+                    self._log_audit(
+                        "LOGIN_FAILED", user=username, details="Invalid credentials"
+                    )
                     return jsonify({"error": "Invalid credentials"}), 401
-                    
+
             except Exception as e:
                 self._log_audit("LOGIN_ERROR", details=str(e))
                 return jsonify({"error": str(e)}), 500
@@ -3667,7 +5392,7 @@ class TinyCTIAPI:
         @self.app.route("/api/logout", methods=["POST"])
         def api_logout():
             """Déconnexion utilisateur"""
-            username = session.get('username', 'unknown')
+            username = session.get("username", "unknown")
             session.clear()
             self._log_audit("LOGOUT", user=username)
             return jsonify({"message": "Logout successful"})
@@ -3680,18 +5405,48 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
-                bucket = request.args.get("bucket", "live")
-                limit = int(request.args.get("limit", self.api_config.get("export", {}).get("max_records", 10000)))
-                
+                bucket = request.args.get("bucket", "active")
+
+                # Validation du bucket
+                valid_buckets = ["active", "critical", "watch", "archive"]
+                if bucket not in valid_buckets:
+                    return (
+                        jsonify(
+                            {
+                                "error": f"Invalid bucket. Must be one of: {valid_buckets}"
+                            }
+                        ),
+                        400,
+                    )
+
+                # Validation et parsing de la limite
+                try:
+                    limit = int(
+                        request.args.get(
+                            "limit",
+                            self.api_config.get("export", {}).get("max_records", 10000),
+                        )
+                    )
+                    if limit < 0:
+                        return jsonify({"error": "Limit must be non-negative"}), 400
+                    if limit > 100000:  # Limite maximale raisonnable
+                        return jsonify({"error": "Limit too large"}), 400
+                except ValueError:
+                    return jsonify({"error": "Limit must be an integer"}), 400
+
                 # Vérification du format d'export
                 export_config = self.api_config.get("export", {})
                 if export_type == "csv" and not export_config.get("csv_enabled", True):
                     return jsonify({"error": "CSV export disabled"}), 403
-                elif export_type == "json" and not export_config.get("json_enabled", True):
+                elif export_type == "json" and not export_config.get(
+                    "json_enabled", True
+                ):
                     return jsonify({"error": "JSON export disabled"}), 403
-                elif export_type == "text" and not export_config.get("text_enabled", True):
+                elif export_type == "text" and not export_config.get(
+                    "text_enabled", True
+                ):
                     return jsonify({"error": "Text export disabled"}), 403
                 elif export_type not in ["csv", "json", "text"]:
                     return jsonify({"error": "Invalid export type"}), 400
@@ -3710,51 +5465,62 @@ class TinyCTIAPI:
                             if len(iocs) >= limit:
                                 break
 
-                username = session.get('username', 'api_user')
-                self._log_audit("EXPORT", user=username, details=f"Type: {export_type}, IOC: {ioc_type}, Count: {len(iocs)}")
+                username = session.get("username", "api_user")
+                self._log_audit(
+                    "EXPORT",
+                    user=username,
+                    details=f"Type: {export_type}, IOC: {ioc_type}, Count: {len(iocs)}",
+                )
 
                 # Export selon le format demandé
                 if export_type == "json":
-                    return jsonify({
-                        "type": ioc_type,
-                        "bucket": bucket,
-                        "export_format": "json",
-                        "count": len(iocs),
-                        "exported_at": datetime.now().isoformat(),
-                        "data": iocs
-                    })
-                
+                    return jsonify(
+                        {
+                            "type": ioc_type,
+                            "bucket": bucket,
+                            "export_format": "json",
+                            "count": len(iocs),
+                            "exported_at": datetime.now().isoformat(),
+                            "data": iocs,
+                        }
+                    )
+
                 elif export_type == "csv":
-                    from flask import make_response
                     import io
-                    
+
+                    from flask import make_response
+
                     output = io.StringIO()
                     output.write(f"# TinyCTI Export - {ioc_type} - {bucket}\n")
                     output.write(f"# Exported at: {datetime.now().isoformat()}\n")
                     output.write(f"# Count: {len(iocs)}\n")
                     output.write("ioc_value\n")
-                    
+
                     for ioc in iocs:
                         output.write(f"{ioc}\n")
-                    
+
                     response = make_response(output.getvalue())
                     response.headers["Content-Type"] = "text/csv"
-                    response.headers["Content-Disposition"] = f"attachment; filename={ioc_type}_{bucket}.csv"
+                    response.headers["Content-Disposition"] = (
+                        f"attachment; filename={ioc_type}_{bucket}.csv"
+                    )
                     return response
-                
+
                 elif export_type == "text":
                     from flask import make_response
-                    
+
                     content = f"# TinyCTI Export - {ioc_type} - {bucket}\n"
                     content += f"# Exported at: {datetime.now().isoformat()}\n"
                     content += f"# Count: {len(iocs)}\n\n"
                     content += "\n".join(iocs)
-                    
+
                     response = make_response(content)
                     response.headers["Content-Type"] = "text/plain"
-                    response.headers["Content-Disposition"] = f"attachment; filename={ioc_type}_{bucket}.txt"
+                    response.headers["Content-Disposition"] = (
+                        f"attachment; filename={ioc_type}_{bucket}.txt"
+                    )
                     return response
-                    
+
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -3765,7 +5531,7 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
                 feeds = []
                 for feed in self.tinycti.config["feeds"]:
@@ -3780,7 +5546,7 @@ class TinyCTIAPI:
                     }
                     feeds.append(feed_info)
 
-                username = session.get('username', 'api_user')
+                username = session.get("username", "api_user")
                 self._log_audit("VIEW_FEEDS", user=username)
                 return jsonify({"feeds": feeds})
             except Exception as e:
@@ -3793,7 +5559,7 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
                 for feed in self.tinycti.config["feeds"]:
                     if feed["name"] == feed_name:
@@ -3803,8 +5569,12 @@ class TinyCTIAPI:
                         # Sauvegarde la configuration
                         self._save_config()
 
-                        username = session.get('username', 'api_user')
-                        self._log_audit("TOGGLE_FEED", user=username, details=f"Feed: {feed_name}, Enabled: {feed['enabled']}")
+                        username = session.get("username", "api_user")
+                        self._log_audit(
+                            "TOGGLE_FEED",
+                            user=username,
+                            details=f"Feed: {feed_name}, Enabled: {feed['enabled']}",
+                        )
 
                         return jsonify(
                             {
@@ -3825,7 +5595,7 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
                 data = request.get_json()
                 schedule = data.get("schedule")
@@ -3836,7 +5606,9 @@ class TinyCTIAPI:
 
                 # Valide le format de schedule
                 try:
-                    ScheduleParser.parse_duration(schedule)
+                    parsed_duration = parse_duration(schedule)
+                    if parsed_duration <= 0:
+                        return jsonify({"error": "Schedule must be positive"}), 400
                 except ValueError as e:
                     return jsonify({"error": f"Format de schedule invalide: {e}"}), 400
 
@@ -3845,10 +5617,26 @@ class TinyCTIAPI:
                     if feed["name"] == feed_name:
                         old_schedule = feed.get("schedule", "1h")
                         old_priority = feed.get("priority", 5)
-                        
+
                         feed["schedule"] = schedule
                         if priority is not None:
-                            feed["priority"] = max(1, min(10, int(priority)))
+                            try:
+                                priority_int = int(priority)
+                                if priority_int < 1 or priority_int > 10:
+                                    return (
+                                        jsonify(
+                                            {
+                                                "error": "Priority must be between 1 and 10"
+                                            }
+                                        ),
+                                        400,
+                                    )
+                                feed["priority"] = priority_int
+                            except (ValueError, TypeError):
+                                return (
+                                    jsonify({"error": "Priority must be an integer"}),
+                                    400,
+                                )
 
                         # Met à jour le scheduler si actif
                         if (
@@ -3856,16 +5644,19 @@ class TinyCTIAPI:
                             and feed_name in self.tinycti.scheduler.tasks
                         ):
                             task = self.tinycti.scheduler.tasks[feed_name]
-                            task.interval = ScheduleParser.parse_duration(schedule)
+                            task.interval = parse_duration(schedule)
                             if priority is not None:
                                 task.priority = feed["priority"]
 
                         # Sauvegarde la configuration
                         self._save_config()
 
-                        username = session.get('username', 'api_user')
-                        self._log_audit("UPDATE_SCHEDULE", user=username, 
-                                      details=f"Feed: {feed_name}, Schedule: {old_schedule}->{schedule}, Priority: {old_priority}->{feed.get('priority')}")
+                        username = session.get("username", "api_user")
+                        self._log_audit(
+                            "UPDATE_SCHEDULE",
+                            user=username,
+                            details=f"Feed: {feed_name}, Schedule: {old_schedule}->{schedule}, Priority: {old_priority}->{feed.get('priority')}",
+                        )
 
                         return jsonify(
                             {
@@ -3884,7 +5675,7 @@ class TinyCTIAPI:
         def api_get_iocs(ioc_type):
             """Récupère les IOCs d'un type donné"""
             try:
-                bucket = request.args.get("bucket", "live")
+                bucket = request.args.get("bucket", "active")
                 limit = int(request.args.get("limit", 1000))
 
                 ioc_file = self.tinycti.storage.output_dir / bucket / f"{ioc_type}.txt"
@@ -3959,14 +5750,14 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
                 exporter = NGFWExporter(self.tinycti.storage)
                 exporter.export_all_buckets()
 
-                username = session.get('username', 'api_user')
+                username = session.get("username", "api_user")
                 self._log_audit("EXPORT_NGFW", user=username)
-                
+
                 return jsonify({"message": "Export NGFW terminé"})
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
@@ -3979,17 +5770,22 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
-                if not hasattr(self.tinycti, 'retention_manager'):
-                    return jsonify({"error": "Gestionnaire de rétention non disponible"}), 500
-                
+                if not hasattr(self.tinycti, "retention_manager"):
+                    return (
+                        jsonify({"error": "Gestionnaire de rétention non disponible"}),
+                        500,
+                    )
+
                 self.tinycti.retention_manager.process_transitions()
-                
-                username = session.get('username', 'api_user')
+
+                username = session.get("username", "api_user")
                 self._log_audit("RETENTION_PROCESS", user=username)
-                
-                return jsonify({"message": "Traitement de la rétention terminé avec succès"})
+
+                return jsonify(
+                    {"message": "Traitement de la rétention terminé avec succès"}
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -4000,16 +5796,25 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
-                if not hasattr(self.tinycti, 'retention_manager'):
-                    return jsonify({"error": "Gestionnaire de rétention non disponible"}), 500
-                
-                audit_result = self.tinycti.retention_manager.audit_duplicates_across_buckets()
-                
-                username = session.get('username', 'api_user')
-                self._log_audit("RETENTION_AUDIT", user=username, details=f"Total doublons: {audit_result.get('total_duplicates', 0)}")
-                
+                if not hasattr(self.tinycti, "retention_manager"):
+                    return (
+                        jsonify({"error": "Gestionnaire de rétention non disponible"}),
+                        500,
+                    )
+
+                audit_result = (
+                    self.tinycti.retention_manager.audit_duplicates_across_buckets()
+                )
+
+                username = session.get("username", "api_user")
+                self._log_audit(
+                    "RETENTION_AUDIT",
+                    user=username,
+                    details=f"Total doublons: {audit_result.get('total_duplicates', 0)}",
+                )
+
                 return jsonify(audit_result)
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
@@ -4021,16 +5826,23 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
-                if not hasattr(self.tinycti, 'retention_manager'):
-                    return jsonify({"error": "Gestionnaire de rétention non disponible"}), 500
-                
-                fix_result = self.tinycti.retention_manager.fix_duplicates()
-                
-                username = session.get('username', 'api_user')
-                self._log_audit("RETENTION_FIX", user=username, details=f"Doublons corrigés: {fix_result.get('fixed_duplicates', 0)}")
-                
+                if not hasattr(self.tinycti, "retention_manager"):
+                    return (
+                        jsonify({"error": "Gestionnaire de rétention non disponible"}),
+                        500,
+                    )
+
+                fix_result = self.tinycti.retention_manager.fix_duplicate_iocs()
+
+                username = session.get("username", "api_user")
+                self._log_audit(
+                    "RETENTION_FIX",
+                    user=username,
+                    details=f"Doublons corrigés: {fix_result.get('fixed_count', 0)}",
+                )
+
                 return jsonify(fix_result)
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
@@ -4042,33 +5854,43 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
                 stats = {}
                 total_iocs = 0
-                
+
                 for bucket in RetentionBucket:
                     bucket_stats = {"types": {}, "total": 0}
-                    
+
                     for ioc_type in IOCType:
-                        file_path = self.tinycti.storage.output_dir / bucket.value / f"{ioc_type.value}.txt"
+                        file_path = (
+                            self.tinycti.storage.output_dir
+                            / bucket.value
+                            / f"{ioc_type.value}.txt"
+                        )
                         if file_path.exists():
-                            with open(file_path, 'r') as f:
-                                count = sum(1 for line in f if line.strip() and not line.startswith("#"))
+                            with open(file_path, "r") as f:
+                                count = sum(
+                                    1
+                                    for line in f
+                                    if line.strip() and not line.startswith("#")
+                                )
                                 bucket_stats["types"][ioc_type.value] = count
                                 bucket_stats["total"] += count
-                    
+
                     stats[bucket.value] = bucket_stats
                     total_iocs += bucket_stats["total"]
-                
-                username = session.get('username', 'api_user')
+
+                username = session.get("username", "api_user")
                 self._log_audit("RETENTION_STATS", user=username)
-                
-                return jsonify({
-                    "buckets": stats,
-                    "total_iocs": total_iocs,
-                    "timestamp": datetime.now().isoformat()
-                })
+
+                return jsonify(
+                    {
+                        "buckets": stats,
+                        "total_iocs": total_iocs,
+                        "timestamp": datetime.now().isoformat(),
+                    }
+                )
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
 
@@ -4080,19 +5902,28 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
-                if not hasattr(self.tinycti, 'error_handler') or not self.tinycti.error_handler:
-                    return jsonify({"error": "Gestionnaire d'erreurs non disponible"}), 500
-                
+                if (
+                    not hasattr(self.tinycti, "error_handler")
+                    or not self.tinycti.error_handler
+                ):
+                    return (
+                        jsonify({"error": "Gestionnaire d'erreurs non disponible"}),
+                        500,
+                    )
+
                 stats = self.tinycti.error_handler.get_error_stats()
-                
-                username = session.get('username', 'api_user')
+
+                username = session.get("username", "api_user")
                 self._log_audit("VIEW_ERROR_STATS", user=username)
-                
+
                 return jsonify(stats)
             except Exception as e:
-                error_response = {"error": "Erreur lors de la récupération des statistiques d'erreurs", "details": str(e)}
+                error_response = {
+                    "error": "Erreur lors de la récupération des statistiques d'erreurs",
+                    "details": str(e),
+                }
                 return jsonify(error_response), 500
 
         @self.app.route("/api/errors/clear", methods=["POST"])
@@ -4102,19 +5933,28 @@ class TinyCTIAPI:
             auth_result = auth_func()
             if auth_result is not None:
                 return auth_result
-                
+
             try:
-                if not hasattr(self.tinycti, 'error_handler') or not self.tinycti.error_handler:
-                    return jsonify({"error": "Gestionnaire d'erreurs non disponible"}), 500
-                
+                if (
+                    not hasattr(self.tinycti, "error_handler")
+                    or not self.tinycti.error_handler
+                ):
+                    return (
+                        jsonify({"error": "Gestionnaire d'erreurs non disponible"}),
+                        500,
+                    )
+
                 self.tinycti.error_handler.clear_error_history()
-                
-                username = session.get('username', 'api_user')
+
+                username = session.get("username", "api_user")
                 self._log_audit("CLEAR_ERROR_HISTORY", user=username)
-                
+
                 return jsonify({"message": "Historique des erreurs vidé avec succès"})
             except Exception as e:
-                error_response = {"error": "Erreur lors du vidage de l'historique", "details": str(e)}
+                error_response = {
+                    "error": "Erreur lors du vidage de l'historique",
+                    "details": str(e),
+                }
                 return jsonify(error_response), 500
 
         @self.app.route("/api/health")
@@ -4125,10 +5965,15 @@ class TinyCTIAPI:
                     "status": "healthy",
                     "timestamp": datetime.now().isoformat(),
                     "version": "1.0.0",
-                    "uptime_seconds": int((datetime.now() - self.tinycti.start_time).total_seconds()),
-                    "components": {}
+                    "uptime_seconds": int(
+                        (
+                            datetime.now()
+                            - getattr(self.tinycti, "start_time", datetime.now())
+                        ).total_seconds()
+                    ),
+                    "components": {},
                 }
-                
+
                 # Vérification du storage
                 try:
                     if self.tinycti.storage and self.tinycti.storage.db_path.exists():
@@ -4139,7 +5984,7 @@ class TinyCTIAPI:
                 except Exception:
                     health_status["components"]["storage"] = "unhealthy"
                     health_status["status"] = "degraded"
-                
+
                 # Vérification du scheduler
                 try:
                     if self.tinycti.scheduler:
@@ -4149,7 +5994,7 @@ class TinyCTIAPI:
                 except Exception:
                     health_status["components"]["scheduler"] = "unhealthy"
                     health_status["status"] = "degraded"
-                
+
                 # Vérification de l'exporteur NGFW
                 try:
                     if self.tinycti.ngfw_exporter:
@@ -4159,33 +6004,63 @@ class TinyCTIAPI:
                 except Exception:
                     health_status["components"]["ngfw_exporter"] = "unhealthy"
                     health_status["status"] = "degraded"
-                
+
                 # Ajoute les statistiques d'erreurs si disponibles
-                if hasattr(self.tinycti, 'error_handler') and self.tinycti.error_handler:
-                    error_stats = self.tinycti.error_handler.get_error_stats()
-                    health_status["error_summary"] = {
-                        "total_errors": error_stats["total_errors"],
-                        "critical_errors": len(error_stats["critical_errors"])
-                    }
-                    
+                if (
+                    hasattr(self.tinycti, "error_handler")
+                    and self.tinycti.error_handler
+                ):
+                    try:
+                        error_stats = self.tinycti.error_handler.get_error_stats()
+                        health_status["error_summary"] = {
+                            "total_errors": error_stats.get("total_errors", 0),
+                            "critical_errors": len(
+                                error_stats.get("critical_errors", [])
+                            ),
+                        }
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Erreur lors de la récupération des stats d'erreur: {e}"
+                        )
+                        health_status["error_summary"] = {
+                            "total_errors": 0,
+                            "critical_errors": 0,
+                        }
+
                     # Marque comme dégradé s'il y a des erreurs critiques récentes
-                    recent_critical = [e for e in error_stats["critical_errors"] 
-                                     if (datetime.now() - datetime.fromisoformat(e["timestamp"])).seconds < 300]  # 5 min
-                    if recent_critical:
-                        health_status["status"] = "degraded"
-                
+                    try:
+                        critical_errors = error_stats.get("critical_errors", [])
+                        recent_critical = [
+                            e
+                            for e in critical_errors
+                            if (
+                                datetime.now() - datetime.fromisoformat(e["timestamp"])
+                            ).seconds
+                            < 300
+                        ]  # 5 min
+                        if recent_critical:
+                            health_status["status"] = "degraded"
+                    except Exception:
+                        # Ignore les erreurs lors de l'analyse des erreurs critiques récentes
+                        pass
+
                 # Détermine le code de statut HTTP selon l'état
                 status_code = 200 if health_status["status"] == "healthy" else 503
-                
+
                 return jsonify(health_status), status_code
-                
+
             except Exception as e:
-                return jsonify({
-                    "status": "unhealthy",
-                    "error": "Health check failed",
-                    "details": str(e),
-                    "timestamp": datetime.now().isoformat()
-                }), 503
+                return (
+                    jsonify(
+                        {
+                            "status": "unhealthy",
+                            "error": "Health check failed",
+                            "details": str(e),
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    ),
+                    503,
+                )
 
         # ===============================
         # INTERFACE WEB DE GESTION
@@ -4540,10 +6415,10 @@ IOCS_TEMPLATE = """
             </select>
             
             <select id="bucket">
-                <option value="live">Live</option>
-                <option value="chaud">Chaud</option>
-                <option value="tiede">Tiède</option>
-                <option value="froid">Froid</option>
+                <option value="active">Active</option>
+                <option value="critical">Critical</option>
+                <option value="watch">Watch</option>
+                <option value="archive">Archive</option>
             </select>
             
             <button class="btn" onclick="loadIOCs()">📊 Charger IOCs</button>
@@ -4609,24 +6484,28 @@ IOCS_TEMPLATE = """
                 const response = await fetch(`/api/iocs/${type}?bucket=${bucket}&limit=500`);
                 const data = await response.json();
                 
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
                 // Affiche les stats
                 const statsDiv = document.getElementById('ioc-stats');
                 statsDiv.innerHTML = `
                     <div class="stat-card">
                         <h4>Type</h4>
-                        <p>${data.type.toUpperCase()}</p>
+                        <p>${data.type ? data.type.toUpperCase() : 'N/A'}</p>
                     </div>
                     <div class="stat-card">
                         <h4>Bucket</h4>
-                        <p>${data.bucket.toUpperCase()}</p>
+                        <p>${data.bucket ? data.bucket.toUpperCase() : 'N/A'}</p>
                     </div>
                     <div class="stat-card">
                         <h4>Total IOCs</h4>
-                        <p>${data.total}</p>
+                        <p>${data.total || 0}</p>
                     </div>
                     <div class="stat-card">
                         <h4>Affichés</h4>
-                        <p>${Math.min(data.total, 500)}</p>
+                        <p>${Math.min(data.total || 0, 500)}</p>
                     </div>
                 `;
                 
@@ -4649,7 +6528,11 @@ IOCS_TEMPLATE = """
                 }
                 
             } catch (error) {
-                alert('Erreur chargement IOCs: ' + error);
+                console.error('Erreur chargement IOCs:', error);
+                const statsDiv = document.getElementById('ioc-stats');
+                const contentDiv = document.getElementById('ioc-content');
+                statsDiv.innerHTML = '<div class="stat-card error"><h4>Erreur</h4><p>Échec du chargement</p></div>';
+                contentDiv.innerHTML = `<p class="error">Erreur: ${error.message}</p>`;
             }
         }
         
@@ -4681,7 +6564,7 @@ class ScheduleParser:
     """Parse les expressions de planification"""
 
     @staticmethod
-    def parse_duration(duration_str: str) -> int:
+    def parse_duration_legacy(duration_str: str) -> int:
         """Convertit une durée en secondes (ex: '30m', '2h', '1d')"""
         if not duration_str:
             return 3600  # 1h par défaut
@@ -4742,10 +6625,22 @@ class FeedScheduler:
 
         # Configuration du daemon
         daemon_config = config.get("daemon", {})
-        self.check_interval = ScheduleParser.parse_duration(
-            daemon_config.get("check_interval", "60s")
-        )
-        self.max_concurrent = daemon_config.get("max_concurrent_feeds", 3)
+        try:
+            self.check_interval = parse_duration(
+                daemon_config.get("check_interval", "60s")
+            )
+        except ValueError:
+            self.check_interval = 60  # 60 secondes par défaut
+        max_concurrent_raw = daemon_config.get("max_concurrent_feeds", 3)
+        try:
+            self.max_concurrent = int(max_concurrent_raw)
+            if self.max_concurrent < 1:
+                self.max_concurrent = 1
+        except (ValueError, TypeError):
+            self.logger.warning(
+                f"Invalid max_concurrent_feeds value: {max_concurrent_raw}, using default 3"
+            )
+            self.max_concurrent = 3
         self.default_schedule = daemon_config.get("default_schedule", "1h")
 
         # Semaphore pour limiter les tâches concurrentes
@@ -4763,29 +6658,29 @@ class FeedScheduler:
             priority = feed.get("priority", 5)
 
             try:
-                interval = ScheduleParser.parse_duration(schedule)
+                interval = parse_duration(schedule)
+            except ValueError:
+                interval = 3600  # 1 heure par défaut
+                self.logger.warning(f"Schedule invalide pour {feed_name}: {schedule}, utilisation de 1h par défaut")
 
-                # Étale les premières exécutions pour éviter les pics
-                initial_delay = random.randint(0, min(interval // 4, 300))  # Max 5min
-                next_run = datetime.now() + timedelta(seconds=initial_delay)
+            # Étale les premières exécutions pour éviter les pics
+            initial_delay = random.randint(0, min(interval // 4, 300))  # Max 5min
+            next_run = datetime.now() + timedelta(seconds=initial_delay)
 
-                task = ScheduledTask(
-                    feed_name=feed_name,
-                    next_run=next_run,
-                    interval=interval,
-                    priority=priority,
-                )
+            task = ScheduledTask(
+                feed_name=feed_name,
+                next_run=next_run,
+                interval=interval,
+                priority=priority,
+            )
 
-                self.tasks[feed_name] = task
-                self.logger.info(
-                    f"Tâche planifiée: {feed_name} - "
-                    f"Intervalle: {schedule} ({interval}s) - "
-                    f"Priorité: {priority} - "
-                    f"Première exécution: {next_run.strftime('%H:%M:%S')}"
-                )
-
-            except ValueError as e:
-                self.logger.error(f"Erreur de planification pour {feed_name}: {e}")
+            self.tasks[feed_name] = task
+            self.logger.info(
+                f"Tâche planifiée: {feed_name} - "
+                f"Intervalle: {schedule} ({interval}s) - "
+                f"Priorité: {priority} - "
+                f"Première exécution: {next_run.strftime('%H:%M:%S')}"
+            )
 
     def get_ready_tasks(self) -> List[ScheduledTask]:
         """Retourne les tâches prêtes à être exécutées, triées par priorité"""
@@ -4871,7 +6766,11 @@ class FeedScheduler:
 class TinyCTI:
     """Orchestrateur principal du framework TinyCTI"""
 
-    def __init__(self, config_file: Union[str, Dict] = "config.yaml", log_level: Optional[int] = None):
+    def __init__(
+        self,
+        config_file: Union[str, Dict] = "config.yaml",
+        log_level: Optional[int] = None,
+    ):
         self.log_level = log_level
         self.logger = logging.getLogger(f"{__name__}.TinyCTI")
 
@@ -4889,46 +6788,62 @@ class TinyCTI:
                 self.config = self.config_loader.load_config()
             except Exception as e:
                 self.logger.error(f"Erreur lors du chargement de la configuration: {e}")
-                raise ConfigurationError(f"Échec du chargement de la configuration: {e}") from e
+                raise ConfigurationError(
+                    f"Échec du chargement de la configuration: {e}"
+                ) from e
+
+        # Initialise les composants de sécurité et performance
+        self.security_validator = SecurityValidator()
+        self.performance_monitor = PerformanceMonitor()
+        self.rate_limiter = RateLimiter()
+        self.session_manager = None  # Initialisé plus tard avec la clé secrète
+
+        # Configuration sécurisée
+        self._setup_security()
 
         # Initialise les composants
         self.api_manager = APIKeyManager()
         self.plugin_manager = PluginManager(self.api_manager)
         self.scheduler = None
-        
+
         # Initialise le gestionnaire d'erreurs (sera configuré après le logging)
         self.error_handler = None
 
         # État du daemon
-        self.is_daemon_running = False
+        self._daemon_lock = threading.Lock()
+        self._is_daemon_running = False
         self._stop_event = threading.Event()
         self.start_time = datetime.now()
 
         # API et export
         self.api_server = None
         self.ngfw_exporter = None
-        
+
         try:
             # Configure le système de logging avancé
             self.logging_configurator = LoggingConfigurator(self.config, self.log_level)
             self.logging_configurator.setup_main_logger()
-            
+
             # Re-configure le logger de cette classe avec le nouveau système
             self.logger = logging.getLogger(f"{__name__}.TinyCTI")
-            self.logger.info("Système de logging avancé configuré avec rotation et compression")
-            
+            self.logger.info(
+                "Système de logging avancé configuré avec rotation et compression"
+            )
+
             # Initialise le gestionnaire d'erreurs avec le nouveau logger
             self.error_handler = ErrorHandler(self.logger)
             self.logger.info("Gestionnaire d'erreurs centralisé initialisé")
-            
+
             self.storage = IOCStorage(
                 self.config["output_dir"], self.config.get("max_file_size", 10485760)
             )
             self._setup_api_keys()
-            
+
             # Initialise le gestionnaire de rétention
             retention_policy = self.config.get("retention_policy", {})
-            self.retention_manager = RetentionManager(self.storage, retention_policy)
+            self.retention_manager = RetentionManager(
+                retention_policy, self.storage, self.logger
+            )
             self.logger.info("Gestionnaire de rétention initialisé")
 
             # Initialise le planificateur si mode daemon
@@ -4945,15 +6860,73 @@ class TinyCTI:
                 host = api_config.get("host", "127.0.0.1")
                 port = api_config.get("port", 5000)
                 self.api_server = TinyCTIAPI(self, host, port)
-            
+
             # Initialise l'API interne d'exposition de fichiers
             self.internal_api = InternalFileAPI(self.storage, self.config)
             if self.internal_api.enabled:
-                self.logger.info(f"API interne configurée sur {self.internal_api.host}:{self.internal_api.port}")
+                self.logger.info(
+                    f"API interne configurée sur {self.internal_api.host}:{self.internal_api.port}"
+                )
 
         except Exception as e:
             self.logger.error(f"Erreur lors de l'initialisation: {e}")
             raise
+
+    @property
+    def is_daemon_running(self) -> bool:
+        """Thread-safe getter for daemon running status"""
+        with self._daemon_lock:
+            return self._is_daemon_running
+
+    @is_daemon_running.setter
+    def is_daemon_running(self, value: bool):
+        """Thread-safe setter for daemon running status"""
+        with self._daemon_lock:
+            self._is_daemon_running = value
+
+    def _setup_security(self):
+        """Configure les composants de sécurité"""
+        try:
+            # Configuration du gestionnaire de sessions sécurisées
+            secret_key = os.environ.get("SECRET_KEY") or self.config.get("api", {}).get(
+                "secret_key"
+            )
+            if secret_key and len(secret_key) >= 32:
+                self.session_manager = SecureSessionManager(secret_key)
+                self.logger.info("Gestionnaire de sessions sécurisées initialisé")
+            else:
+                self.logger.warning(
+                    "Clé secrète faible ou manquante - génération automatique"
+                )
+                auto_key = secrets.token_urlsafe(64)
+                self.session_manager = SecureSessionManager(auto_key)
+
+            # Configuration des limites de mémoire
+            max_memory = self.config.get("performance", {}).get("memory_limit", "1GB")
+            if isinstance(max_memory, str):
+                if max_memory.endswith("GB"):
+                    max_memory_mb = int(max_memory[:-2]) * 1024
+                elif max_memory.endswith("MB"):
+                    max_memory_mb = int(max_memory[:-2])
+                else:
+                    max_memory_mb = 1024  # Default 1GB
+            else:
+                max_memory_mb = int(max_memory)
+
+            self.performance_monitor.memory_manager.max_memory_mb = max_memory_mb
+
+            # Configuration des seuils GC
+            gc_threshold = self.config.get("performance", {}).get("gc_threshold", 10000)
+            self.performance_monitor.memory_manager.gc_threshold = gc_threshold
+
+            self.logger.info(
+                f"Sécurité configurée - Limite mémoire: {max_memory_mb}MB, Seuil GC: {gc_threshold}"
+            )
+
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la configuration sécurisée: {e}")
+            # Continue avec les valeurs par défaut
+            self.session_manager = SecureSessionManager(secrets.token_urlsafe(64))
 
     def _setup_api_keys(self):
         """Configure les clés API pour chaque flux"""
@@ -5047,11 +7020,13 @@ class TinyCTI:
             api_thread = threading.Thread(target=self.api_server.start, daemon=True)
             api_thread.start()
             self.logger.info("API de gestion TinyCTI démarrée en arrière-plan")
-        
+
         # Démarre l'API interne d'exposition de fichiers si configurée
         internal_api_thread = None
-        if hasattr(self, 'internal_api') and self.internal_api.enabled:
-            internal_api_thread = threading.Thread(target=self.internal_api.start, daemon=True)
+        if hasattr(self, "internal_api") and self.internal_api.enabled:
+            internal_api_thread = threading.Thread(
+                target=self.internal_api.start, daemon=True
+            )
             internal_api_thread.start()
             self.logger.info("API interne d'exposition démarrée en arrière-plan")
 
@@ -5280,14 +7255,16 @@ class TinyCTI:
             )
         else:
             self.api_server.start()
-    
+
     def start_internal_api(self, background: bool = True):
         """Démarre l'API interne d'exposition de fichiers"""
-        if not hasattr(self, 'internal_api') or not self.internal_api.enabled:
+        if not hasattr(self, "internal_api") or not self.internal_api.enabled:
             return
-        
+
         if background:
-            internal_api_thread = threading.Thread(target=self.internal_api.start, daemon=True)
+            internal_api_thread = threading.Thread(
+                target=self.internal_api.start, daemon=True
+            )
             internal_api_thread.start()
             self.logger.info(
                 f"API interne démarrée en arrière-plan sur http://{self.internal_api.host}:{self.internal_api.port}"
@@ -5295,10 +7272,21 @@ class TinyCTI:
         else:
             self.internal_api.start()
 
-    def manual_export_ngfw(self, bucket: str = "live"):
+    def manual_export_ngfw(self, bucket: str = "critical"):
         """Export manuel NGFW"""
         try:
-            bucket_enum = RetentionBucket(bucket)
+            # Conversion string vers enum avec mapping
+            bucket_mapping = {
+                "active": RetentionBucket.CHAUD,
+                "critical": RetentionBucket.LIVE,
+                "watch": RetentionBucket.TIEDE,
+                "archive": RetentionBucket.FROID,
+                "live": RetentionBucket.LIVE,
+                "chaud": RetentionBucket.CHAUD,
+                "tiede": RetentionBucket.TIEDE,
+                "froid": RetentionBucket.FROID,
+            }
+            bucket_enum = bucket_mapping.get(bucket, RetentionBucket.LIVE)
             self.ngfw_exporter.export_bucket(bucket_enum)
             self.ngfw_exporter.generate_pfsense_aliases(bucket_enum)
             self.ngfw_exporter.generate_iptables_rules(bucket_enum)
@@ -5430,6 +7418,106 @@ class TinyCTI:
 
         return feed_stats
 
+    def get_security_status(self) -> Dict[str, Any]:
+        """Retourne le statut de sécurité du système"""
+        try:
+            memory_stats = self.performance_monitor.memory_manager.get_memory_usage()
+
+            security_status = {
+                "session_manager_active": self.session_manager is not None,
+                "rate_limiter_active": self.rate_limiter is not None,
+                "security_validator_active": self.security_validator is not None,
+                "memory_usage_mb": memory_stats["rss_mb"],
+                "memory_limit_mb": self.performance_monitor.memory_manager.max_memory_mb,
+                "memory_within_limits": memory_stats["rss_mb"]
+                < self.performance_monitor.memory_manager.max_memory_mb,
+                "active_sessions": (
+                    len(self.session_manager.sessions) if self.session_manager else 0
+                ),
+                "blocked_ips": len(self.rate_limiter.blocked_ips),
+                "failed_attempts": len(self.rate_limiter.failed_attempts),
+                "last_security_check": datetime.now().isoformat(),
+            }
+
+            return security_status
+
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la récupération du statut sécurité: {e}")
+            return {"error": str(e)}
+
+    def get_performance_status(self) -> Dict[str, Any]:
+        """Retourne le statut de performance du système"""
+        try:
+            return self.performance_monitor.get_performance_stats()
+        except Exception as e:
+            self.logger.error(
+                f"Erreur lors de la récupération du statut performance: {e}"
+            )
+            return {"error": str(e)}
+
+    def optimize_memory(self) -> Dict[str, Any]:
+        """Optimise la mémoire manuellement"""
+        try:
+            self.logger.info("Optimisation mémoire démarrée")
+            result = self.performance_monitor.memory_manager.optimize_memory()
+            self.logger.info(
+                f"Optimisation terminée - {result.get('memory_freed_mb', 0):.2f}MB libérés"
+            )
+            return result
+        except Exception as e:
+            self.logger.error(f"Erreur lors de l'optimisation mémoire: {e}")
+            return {"error": str(e)}
+
+    def validate_ioc_security(self, value: str, ioc_type: str) -> bool:
+        """Valide la sécurité d'un IOC avant traitement"""
+        try:
+            # Validation de base
+            if not self.security_validator.validate_ioc_value(value, ioc_type):
+                self.logger.warning(f"IOC invalide détecté: {value} (type: {ioc_type})")
+                return False
+
+            # Vérifications de sécurité supplémentaires
+            if len(value) > 2048:  # Limite de sécurité
+                self.logger.warning(f"IOC trop long détecté: {len(value)} caractères")
+                return False
+
+            # Détection de patterns suspects
+            suspicious_patterns = [
+                r"<script.*?>",  # Scripts potentiels
+                r"javascript:",  # URLs JavaScript
+                r"data:.*base64",  # Data URLs base64
+                r"\\x[0-9a-fA-F]{2}",  # Encodage hexadécimal
+            ]
+
+            for pattern in suspicious_patterns:
+                if re.search(pattern, value, re.IGNORECASE):
+                    self.logger.warning(
+                        f"Pattern suspect détecté dans l'IOC: {pattern}"
+                    )
+                    return False
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la validation sécurité IOC: {e}")
+            return False
+
+    def get_memory_report(self) -> str:
+        """Génère un rapport détaillé de mémoire"""
+        try:
+            return self.performance_monitor.memory_manager.get_memory_report()
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la génération du rapport mémoire: {e}")
+            return f"Erreur: {e}"
+
+    def check_rate_limit(self, ip: str, endpoint: str = "default") -> bool:
+        """Vérifie les limites de débit pour une IP"""
+        try:
+            return self.rate_limiter.is_allowed(ip, endpoint)
+        except Exception as e:
+            self.logger.error(f"Erreur lors de la vérification rate limit: {e}")
+            return False  # Bloque en cas d'erreur par sécurité
+
     def _log_final_stats(self, stats: Dict, duration: float):
         """Affiche les statistiques finales"""
         self.logger.info("=" * 50)
@@ -5457,23 +7545,22 @@ class TinyCTI:
 def main():
     """Point d'entrée principal"""
     import argparse
-    import signal
 
     parser = argparse.ArgumentParser(
         description="TinyCTI - Framework modulaire léger de collecte d'IOCs",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples d'utilisation:
-  python tinycti.py                    # Exécution one-shot avec config.yaml
+  python tinycti.py                    # Exécution selon config.yaml (daemon/oneshot)
   python tinycti.py -c myconfig.yaml   # Configuration spécifique
-  python tinycti.py -d                 # Mode daemon (planification automatique)
-  python tinycti.py --daemon           # Mode daemon explicite
-  python tinycti.py --api              # Démarre uniquement l'API (sans collecte)
-  python tinycti.py -d --api           # Mode daemon + API
+  python tinycti.py --once             # Force mode one-shot (ignore config daemon)
   python tinycti.py --export-ngfw      # Export NGFW manuel
-  python tinycti.py -v                 # Mode verbeux
+  python tinycti.py --validate-config  # Valide la configuration
+  python tinycti.py --analyze-csv FEED # Analyse structure d'un flux CSV
+  python tinycti.py --status           # Affiche le statut
   python tinycti.py --debug            # Mode debug complet
-  python tinycti.py --status           # Affiche le statut du planificateur
+
+Note: Les modes daemon et API sont configurés dans config.yaml
         """,
     )
 
@@ -5485,13 +7572,6 @@ Exemples d'utilisation:
     )
 
     parser.add_argument(
-        "-d",
-        "--daemon",
-        action="store_true",
-        help="Mode daemon avec planification automatique",
-    )
-
-    parser.add_argument(
         "--once",
         action="store_true",
         help="Force le mode one-shot (ignore la config daemon)",
@@ -5500,7 +7580,7 @@ Exemples d'utilisation:
     parser.add_argument(
         "--status",
         action="store_true",
-        help="Affiche le statut du planificateur et quitte",
+        help="Affiche le statut du système et quitte",
     )
 
     parser.add_argument(
@@ -5518,25 +7598,9 @@ Exemples d'utilisation:
     )
 
     parser.add_argument(
-        "--api",
-        action="store_true",
-        help="Démarre uniquement le serveur API (sans collecte)",
-    )
-
-    parser.add_argument(
         "--export-ngfw",
         action="store_true",
         help="Lance un export NGFW manuel et quitte",
-    )
-
-    parser.add_argument(
-        "--api-host",
-        default="127.0.0.1",
-        help="Adresse IP pour l'API (défaut: 127.0.0.1)",
-    )
-
-    parser.add_argument(
-        "--api-port", type=int, default=5000, help="Port pour l'API (défaut: 5000)"
     )
 
     parser.add_argument(
@@ -5549,6 +7613,30 @@ Exemples d'utilisation:
 
     args = parser.parse_args()
 
+    # Validation des arguments CLI
+    def validate_cli_args(args):
+        """Valide la cohérence des arguments CLI"""
+        errors = []
+        
+        # Vérifier les conflits d'arguments
+        if args.status and args.once:
+            errors.append("--status ne peut pas être combiné avec --once")
+            
+        if args.export_ngfw and args.once:
+            errors.append("--export-ngfw ne peut pas être combiné avec --once")
+            
+        if args.validate_config and args.once:
+            errors.append("--validate-config ne peut pas être combiné avec --once")
+        
+        if errors:
+            print("❌ Erreurs de validation des arguments:")
+            for error in errors:
+                print(f"   • {error}")
+            print("\nUtilisez --help pour voir les combinaisons valides.")
+            sys.exit(1)
+    
+    validate_cli_args(args)
+
     # Configuration des logs - sera remplacée par LoggingConfigurator lors de l'initialisation TinyCTI
     # Configuration temporaire pour les messages d'initialisation
     log_level = logging.WARNING
@@ -5556,11 +7644,10 @@ Exemples d'utilisation:
         log_level = logging.DEBUG
     elif args.verbose:
         log_level = logging.INFO
-    
+
     # Configuration basique temporaire
     logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        level=log_level, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
     # Supprime les logs verbeux des bibliothèques externes
@@ -5691,24 +7778,6 @@ Exemples d'utilisation:
 
             sys.exit(0)
 
-        # Mode API uniquement
-        if args.api and not args.daemon:
-            print(
-                f"Démarrage du serveur API sur http://{args.api_host}:{args.api_port}"
-            )
-            print("Appuyez sur Ctrl+C pour arrêter")
-
-            # Override la config API si arguments fournis
-            if not tinycti_instance.api_server:
-                tinycti_instance.api_server = TinyCTIAPI(
-                    tinycti_instance, args.api_host, args.api_port
-                )
-
-            try:
-                tinycti_instance.api_server.start()
-            except KeyboardInterrupt:
-                print("\nServeur API arrêté")
-                sys.exit(0)
 
         # Affichage du statut du planificateur
         if args.status:
@@ -5743,11 +7812,32 @@ Exemples d'utilisation:
 
             sys.exit(0)
 
-        # Détermine le mode d'exécution
-        daemon_mode = args.daemon
+        # Détermine le mode d'exécution basé sur la config et les arguments
+        daemon_config = tinycti_instance.config.get("daemon", {})
+        api_config = tinycti_instance.config.get("api", {})
+        
+        # --once force le mode one-shot même si daemon est configuré
         if args.once:
             daemon_mode = False
-
+            print("🔄 Mode one-shot forcé (--once)")
+        else:
+            # Utilise la configuration
+            daemon_mode = daemon_config.get("enabled", False)
+            
+        # Affiche le mode déterminé
+        if daemon_mode and api_config.get("enabled", False):
+            api_host = api_config.get("host", "127.0.0.1")
+            api_port = api_config.get("port", 5000)
+            print(f"🚀 Mode daemon + API selon config - http://{api_host}:{api_port}")
+        elif daemon_mode:
+            print("🔄 Mode daemon selon config")
+        elif api_config.get("enabled", False):
+            api_host = api_config.get("host", "127.0.0.1")
+            api_port = api_config.get("port", 5000)
+            print(f"🌐 Mode API seul selon config - http://{api_host}:{api_port}")
+        else:
+            print("⚡ Mode one-shot selon config")
+            
         # Lance l'exécution
         tinycti_instance.run(daemon_mode=daemon_mode)
 

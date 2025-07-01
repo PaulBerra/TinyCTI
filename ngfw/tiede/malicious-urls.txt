@@ -1,4 +1,0 @@
-# TinyCTI NGFW Export - 2025-06-29T17:57:19.310977
-# Bucket: tiede - Type: url
-# Format: One IOC per line
-# Total IOCs: 0

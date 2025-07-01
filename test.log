@@ -1,5 +1,0 @@
-2025-06-29 17:51:18,856 - tinycti.TinyCTI - INFO - Système de logging avancé configuré avec rotation et compression
-2025-06-29 17:51:18,857 - tinycti.TinyCTI - INFO - Gestionnaire d'erreurs centralisé initialisé
-2025-06-29 17:51:18,858 - tinycti.IOCStorage - INFO - Structure de stockage initialisée dans /tmp/test
-2025-06-29 17:51:18,867 - tinycti.IOCStorage - INFO - Base de données de déduplication initialisée
-2025-06-29 17:51:18,872 - tinycti.TinyCTI - INFO - Gestionnaire de rétention initialisé

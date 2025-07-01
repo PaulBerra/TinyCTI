@@ -37,7 +37,6 @@ mypy>=0.910          # Type checking
 
 # Production deployment
 supervisor>=4.2.0    # Process management
-nginx                # Reverse proxy (system package)
 
 pyyaml
 requests
@@ -49,4 +48,4 @@ cerberus
 flask
 flask_limiter
 bcrypt
-jwt
+pyjwt

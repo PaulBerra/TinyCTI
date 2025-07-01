@@ -1,0 +1,37 @@
+[Unit]
+Description=TinyCTI - Threat Intelligence Collection Framework
+Documentation=https://github.com/your-org/tinycti
+After=network.target
+Wants=network.target
+
+[Service]
+Type=exec
+User=tinycti
+Group=tinycti
+WorkingDirectory=/opt/tinycti
+Environment=PYTHONPATH=/opt/tinycti
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/tinycti/venv/bin/python /opt/tinycti/tinycti.py -d --api
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+KillMode=mixed
+TimeoutStopSec=30
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/tinycti/iocs /opt/tinycti/ngfw /opt/tinycti/*.log /opt/tinycti/*.db
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+MemoryDenyWriteExecute=true
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tinycti
+
+[Install]
+WantedBy=multi-user.target

@@ -2,32 +2,22 @@
 Configuration pytest et fixtures partagées pour TinyCTI
 """
 
-import pytest
-import tempfile
 import shutil
 import sqlite3
-import yaml
-import os
 import sys
-from pathlib import Path
-from unittest.mock import Mock, MagicMock
+import tempfile
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import Mock
+
+import pytest
+import yaml
 
 # Ajoute le répertoire racine au PYTHONPATH pour les imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tinycti import (
-    TinyCTI, 
-    ConfigurationLoader, 
-    LoggingConfigurator,
-    RetentionManager,
-    ErrorHandler,
-    IOCStorage,
-    TinyCTIAPI,
-    IOC,
-    IOCType,
-    RetentionBucket
-)
+from tinycti import (IOC, ConfigurationLoader, ErrorHandler, IOCStorage,
+                     IOCType, RetentionBucket, RetentionManager, TinyCTIAPI)
 
 
 @pytest.fixture(scope="session")
@@ -52,7 +42,7 @@ def test_config_minimal():
                 "schedule": "1h",
                 "priority": 5,
                 "timeout": 30,
-                "max_retries": 3
+                "max_retries": 3,
             }
         ],
         "output_dir": "test_iocs",
@@ -60,7 +50,7 @@ def test_config_minimal():
         "daemon": {
             "enabled": False,
             "check_interval": "60s",
-            "max_concurrent_feeds": 3
+            "max_concurrent_feeds": 3,
         },
         "api": {
             "enabled": False,
@@ -69,17 +59,14 @@ def test_config_minimal():
             "auth": {
                 "enabled": False,
                 "password": "",
-                "rate_limit": {
-                    "enabled": True,
-                    "requests_per_minute": 60
-                }
+                "rate_limit": {"enabled": True, "requests_per_minute": 60},
             },
             "export": {
                 "csv_enabled": True,
                 "json_enabled": True,
                 "text_enabled": True,
-                "max_records": 1000
-            }
+                "max_records": 1000,
+            },
         },
         "logging": {
             "level": "INFO",
@@ -87,27 +74,24 @@ def test_config_minimal():
             "max_size": "1MB",
             "backup_count": 3,
             "compression": False,
-            "audit_enabled": False
+            "audit_enabled": False,
         },
         "retention_policy": {
             "live_to_chaud": "24h",
             "chaud_to_tiede": "7d",
             "tiede_to_froid": "30d",
-            "froid_retention": "365d"
+            "froid_retention": "365d",
         },
         "authentication": {
             "users": {
-                "test_user": {
-                    "password_hash": "$2b$12$test_hash",
-                    "role": "admin"
-                }
+                "test_user": {"password_hash": "$2b$12$test_hash", "role": "admin"}
             }
         },
         "security": {
             "validate_ssl": True,
             "max_file_size": 52428800,
-            "user_agent": "TinyCTI-Test/1.0"
-        }
+            "user_agent": "TinyCTI-Test/1.0",
+        },
     }
 
 
@@ -115,10 +99,10 @@ def test_config_minimal():
 def test_config_file(temp_directory, test_config_minimal):
     """Crée un fichier de configuration temporaire"""
     config_path = temp_directory / "test_config.yaml"
-    
-    with open(config_path, 'w') as f:
+
+    with open(config_path, "w") as f:
         yaml.dump(test_config_minimal, f)
-    
+
     return config_path
 
 
@@ -130,7 +114,7 @@ def mock_ioc_live():
         type=IOCType.IPV4,
         source="test_source",
         retention=RetentionBucket.LIVE,
-        first_seen=datetime.now()
+        first_seen=datetime.now(),
     )
 
 
@@ -142,7 +126,7 @@ def mock_ioc_chaud():
         type=IOCType.DOMAIN,
         source="test_source",
         retention=RetentionBucket.CHAUD,
-        first_seen=datetime.now()
+        first_seen=datetime.now(),
     )
 
 
@@ -150,10 +134,20 @@ def mock_ioc_chaud():
 def sample_iocs():
     """Liste d'IOCs de test"""
     return [
-        IOC("192.168.1.1", IOCType.IPV4, "test_feed", RetentionBucket.LIVE),
-        IOC("evil.com", IOCType.DOMAIN, "test_feed", RetentionBucket.LIVE),
-        IOC("http://malicious.com/path", IOCType.URL, "test_feed", RetentionBucket.LIVE),
-        IOC("a1b2c3d4e5f6", IOCType.HASH_MD5, "test_feed", RetentionBucket.CHAUD),
+        IOC("192.168.1.1", IOCType.IPV4, "test_feed", retention=RetentionBucket.LIVE),
+        IOC("evil.com", IOCType.DOMAIN, "test_feed", retention=RetentionBucket.LIVE),
+        IOC(
+            "http://malicious.com/path",
+            IOCType.URL,
+            "test_feed",
+            retention=RetentionBucket.LIVE,
+        ),
+        IOC(
+            "a1b2c3d4e5f6",
+            IOCType.HASH_MD5,
+            "test_feed",
+            retention=RetentionBucket.CHAUD,
+        ),
     ]
 
 
@@ -173,11 +167,13 @@ def mock_requests_session():
 def temp_database(temp_directory):
     """Base de données SQLite temporaire"""
     import uuid
+
     db_path = temp_directory / f"test_{uuid.uuid4().hex[:8]}.db"
-    
+
     # Crée la base de données avec le schéma IOC
     conn = sqlite3.connect(str(db_path))
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS iocs (
             value TEXT,
             type TEXT,
@@ -187,12 +183,13 @@ def temp_database(temp_directory):
             last_seen TIMESTAMP,
             PRIMARY KEY (value, type)
         )
-    """)
+    """
+    )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_bucket ON iocs(bucket)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_last_seen ON iocs(last_seen)")
     conn.commit()
     conn.close()
-    
+
     return db_path
 
 
@@ -201,12 +198,12 @@ def temp_storage(temp_directory, temp_database):
     """Instance IOCStorage temporaire"""
     storage = IOCStorage(str(temp_directory), max_file_size=1048576)
     storage.db_path = temp_database
-    
+
     # Crée les répertoires de buckets
     for bucket in RetentionBucket:
         bucket_dir = temp_directory / bucket.value
         bucket_dir.mkdir(exist_ok=True)
-    
+
     return storage
 
 
@@ -247,38 +244,92 @@ def flask_app(temp_directory, test_config_minimal):
     mock_tinycti = Mock()
     mock_tinycti.config = test_config_minimal
     mock_tinycti.start_time = datetime.now()
-    
-    # Mock storage avec db_path
+
+    # Mock storage avec db_path et structure de fichiers
     mock_storage = Mock()
     mock_db_path = Mock()
     mock_db_path.exists.return_value = True
     mock_storage.db_path = mock_db_path
+    mock_storage.output_dir = temp_directory
     mock_storage.get_iocs_by_type.return_value = []
-    mock_storage.get_bucket_stats.return_value = {"live": 0, "chaud": 0, "tiede": 0, "froid": 0}
+    mock_storage.get_bucket_stats.return_value = {
+        "active": 0,
+        "critical": 0,
+        "watch": 0,
+        "archive": 0,
+    }
+
+    # Crée la structure de fichiers de test
+    for bucket in ["active", "critical", "watch", "archive"]:
+        bucket_dir = temp_directory / bucket
+        bucket_dir.mkdir(exist_ok=True)
+        for ioc_type in [
+            "ipv4",
+            "ipv6",
+            "domain",
+            "url",
+            "hash_md5",
+            "hash_sha1",
+            "hash_sha256",
+            "hash_sha512",
+            "email",
+        ]:
+            ioc_file = bucket_dir / f"{ioc_type}.txt"
+            with open(ioc_file, "w") as f:
+                f.write("# Test IOC file\n")
+                if ioc_type == "ipv4":
+                    f.write("192.168.1.1\n")
+                    f.write("10.0.0.1\n")
+                elif ioc_type == "domain":
+                    f.write("example.com\n")
+                    f.write("test.org\n")
+
     mock_tinycti.storage = mock_storage
-    
+
     mock_tinycti.scheduler = None
     mock_tinycti.is_daemon_running = False
-    
+
     # Mock NGFW exporter
     mock_ngfw_exporter = Mock()
     mock_tinycti.ngfw_exporter = mock_ngfw_exporter
-    
+
     # Mock error handler
     mock_error_handler = Mock()
-    mock_error_handler.get_error_stats.return_value = {"total_errors": 0, "recent_errors": []}
+    mock_error_handler.get_error_stats.return_value = {
+        "total_errors": 0,
+        "recent_errors": [],
+    }
     mock_tinycti.error_handler = mock_error_handler
-    
+
     # Mock retention manager
     mock_retention_manager = Mock()
-    mock_retention_manager.get_retention_stats.return_value = {"buckets": {}, "transitions": 0}
-    mock_retention_manager.audit_duplicates_across_buckets.return_value = {"duplicates": []}
+    mock_retention_manager.get_retention_stats.return_value = {
+        "buckets": {},
+        "transitions": 0,
+    }
+    mock_retention_manager.audit_duplicates_across_buckets.return_value = {
+        "duplicates": []
+    }
+    mock_retention_manager.fix_duplicates.return_value = {
+        "fixed_duplicates": 0,
+        "status": "success",
+    }
+    mock_retention_manager.fix_duplicate_iocs.return_value = {
+        "total_duplicates": 0,
+        "fixed_count": 0,
+        "status": "success",
+    }
+    mock_retention_manager.process_retentions.return_value = {"status": "success"}
     mock_tinycti.retention_manager = mock_retention_manager
-    
+
     # Crée l'instance API
     api = TinyCTIAPI(mock_tinycti, "127.0.0.1", 5000)
-    api.app.config['TESTING'] = True
-    
+    api.app.config["TESTING"] = True
+
+    # Mock des méthodes API
+    api._save_config = Mock()
+    api._log_audit = Mock()
+
     return api.app
 
 
@@ -290,6 +341,7 @@ def flask_client(flask_app):
 
 # Fixtures pour les données de test spécialisées
 
+
 @pytest.fixture
 def malformed_config():
     """Configuration malformée pour tester la validation"""
@@ -298,9 +350,9 @@ def malformed_config():
             {
                 "name": "bad_feed",
                 "type": "invalid_type",  # Type invalide
-                "url": "not_a_url",      # URL invalide
-                "enabled": "yes",        # Devrait être boolean
-                "retention": "invalid_bucket"  # Bucket invalide
+                "url": "not_a_url",  # URL invalide
+                "enabled": "yes",  # Devrait être boolean
+                "retention": "invalid_bucket",  # Bucket invalide
             }
         ]
     }
@@ -309,10 +361,12 @@ def malformed_config():
 @pytest.fixture
 def network_error_mock():
     """Mock pour simuler des erreurs réseau"""
+
     def side_effect(*args, **kwargs):
         from requests.exceptions import ConnectionError
+
         raise ConnectionError("Connection failed")
-    
+
     return side_effect
 
 
@@ -335,14 +389,14 @@ def json_test_data():
                 "value": "192.168.1.100",
                 "type": "ipv4",
                 "confidence": 80,
-                "tags": ["malware", "botnet"]
+                "tags": ["malware", "botnet"],
             },
             {
                 "value": "evil-domain.com",
                 "type": "domain",
                 "confidence": 90,
-                "tags": ["phishing"]
-            }
+                "tags": ["phishing"],
+            },
         ]
     }
 
@@ -350,21 +404,13 @@ def json_test_data():
 # Markers personnalisés pour pytest
 def pytest_configure(config):
     """Configuration des markers pytest"""
-    config.addinivalue_line(
-        "markers", "unit: Tests unitaires rapides"
-    )
-    config.addinivalue_line(
-        "markers", "integration: Tests d'intégration"
-    )
-    config.addinivalue_line(
-        "markers", "slow: Tests lents nécessitant des ressources"
-    )
+    config.addinivalue_line("markers", "unit: Tests unitaires rapides")
+    config.addinivalue_line("markers", "integration: Tests d'intégration")
+    config.addinivalue_line("markers", "slow: Tests lents nécessitant des ressources")
     config.addinivalue_line(
         "markers", "network: Tests nécessitant une connexion réseau"
     )
-    config.addinivalue_line(
-        "markers", "security: Tests de sécurité"
-    )
+    config.addinivalue_line("markers", "security: Tests de sécurité")
 
 
 # Hooks pytest pour la collecte de tests
@@ -374,7 +420,7 @@ def pytest_collection_modifyitems(config, items):
         # Ajoute automatiquement le marker 'unit' aux tests dans le dossier unit/
         if "unit" in str(item.fspath):
             item.add_marker(pytest.mark.unit)
-        
+
         # Ajoute automatiquement le marker 'integration' aux tests dans le dossier integration/
         elif "integration" in str(item.fspath):
             item.add_marker(pytest.mark.integration)
@@ -386,9 +432,10 @@ def setup_test_environment():
     """Configuration globale de l'environnement de test"""
     # Désactive les logs durant les tests pour éviter le spam
     import logging
+
     logging.disable(logging.CRITICAL)
-    
+
     yield
-    
+
     # Réactive les logs après les tests
     logging.disable(logging.NOTSET)
