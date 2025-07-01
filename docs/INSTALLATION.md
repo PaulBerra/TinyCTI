@@ -42,9 +42,6 @@ cd TinyCTI
 
 # Installer les dépendances Python
 pip3 install -r requirements.txt
-
-# Ou installer manuellement les dépendances principales
-pip3 install requests feedparser flask pyyaml bcrypt jwt stix2
 ```
 
 ### Méthode 2: Environnement virtuel (recommandé)
