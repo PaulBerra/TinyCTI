@@ -109,19 +109,15 @@ mkdir -p data/{live,chaud,tiede,froid}
 mkdir -p logs
 ```
 
-### 4. Initialiser la base de données
-```bash
-python3 tinycti.py --init-db
-```
 
 ## Premier démarrage
 
 ### Mode simple (une fois)
 ```bash
-python3 tinycti.py --config config.yaml
+python3 tinycti.py --once
 ```
 
-### Mode daemon
+### Mode daemon (Si conf adaptée)
 ```bash
 python3 tinycti.py --config config.yaml
 ```
@@ -260,7 +256,7 @@ pip3 install requests feedparser flask pyyaml bcrypt jwt stix2 cerberus
 ```bash
 # Réinitialiser la base de données
 rm data/tinycti.db
-python3 tinycti.py --init-db
+python3 tinycti.py --once
 ```
 
 ### Logs de diagnostic
@@ -269,7 +265,7 @@ python3 tinycti.py --init-db
 tail -f tinycti.log
 
 # Niveau debug
-python3 tinycti.py --config config.yaml --debug
+python3 tinycti.py --debug
 ```
 
 ### Test de connectivité
@@ -332,7 +328,7 @@ pip3 uninstall -r requirements.txt
 ```bash
 # Version et configuration
 python3 tinycti.py --version
-python3 tinycti.py --check-config
+python3 tinycti.py --validate-config
 
 # Statistiques
 curl http://localhost:5000/api/stats
