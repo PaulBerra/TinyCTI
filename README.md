@@ -53,7 +53,7 @@
 - **User Management**: Role-based access control, session management
 - **Export Tools**: On-demand exports, custom filtering, bulk operations
 
-###  **Intelligent Threat Bucketing System**
+###  **Intelligent Threat Bucketing System (TODO)**
 
 TinyCTI implements a sophisticated 7-tier threat classification system:
 
@@ -67,7 +67,7 @@ ARCHIVE   ⚪  → Historical threats for baseline analysis
 DEPRECATED ⚫  → Outdated threats scheduled for removal
 ```
 
-**Smart Classification Features:**
+**Smart Classification Features: (TODO)**
 - **Source-based Confidence**: Automatic confidence scoring by feed reputation
 - **Age-based Transitions**: Intelligent bucket migration based on IOC lifecycle
 - **Manual Override**: Expert review capabilities with verification tracking
@@ -75,7 +75,7 @@ DEPRECATED ⚫  → Outdated threats scheduled for removal
 
 ###  **Management**
 
-#### **Four-tier Retention System**
+#### **Four-tier Retention System (TODO)**
 - **Live** (🔴): Fresh IOCs in raw format (no metadata headers)
 - **Chaud** (🟠): Recent IOCs (24h+ old) with enriched metadata
 - **Tiède** (🔵): Warm IOCs (7d+ old) with historical context
