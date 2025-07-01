@@ -1,0 +1,52 @@
+# Configuration des IPs à ignorer/bannir
+# IPs privées et publiques connues qui ne doivent pas être ajoutées aux IOCs
+
+# IPs privées (RFC 1918)
+private_ranges:
+  - "10.0.0.0/8"
+  - "172.16.0.0/12" 
+  - "192.168.0.0/16"
+  - "127.0.0.0/8"     # Loopback
+  - "169.254.0.0/16"  # Link-local
+  - "224.0.0.0/4"     # Multicast
+  - "240.0.0.0/4"     # Reserved
+
+# IPs publiques connues et utiles à ne pas bannir
+public_whitelist:
+  # DNS publics
+  - "8.8.8.8"         # Google DNS
+  - "8.8.4.4"         # Google DNS
+  - "1.1.1.1"         # Cloudflare DNS
+  - "1.0.0.1"         # Cloudflare DNS
+  - "9.9.9.9"         # Quad9 DNS
+  - "208.67.222.222"  # OpenDNS
+  - "208.67.220.220"  # OpenDNS
+  
+  # NTP publics
+  - "129.6.15.28"     # NIST NTP
+  - "129.6.15.29"     # NIST NTP
+  - "216.239.35.0"    # Google NTP
+  - "216.239.35.4"    # Google NTP
+  
+  # Autres services essentiels
+  - "104.16.248.249"  # Cloudflare
+  - "104.16.249.249"  # Cloudflare
+  - "13.107.42.14"    # Microsoft
+  - "20.190.128.0"    # Microsoft Azure
+  
+# Domaines publics connus à ne pas bannir
+domain_whitelist:
+  - "google.com"
+  - "microsoft.com"
+  - "cloudflare.com"
+  - "amazonaws.com"
+  - "github.com"
+  - "stackoverflow.com"
+  - "wikipedia.org"
+  - "mozilla.org"
+  - "apache.org"
+  - "debian.org"
+  - "ubuntu.com"
+  - "redhat.com"
+  - "centos.org"
+  - "kernel.org"

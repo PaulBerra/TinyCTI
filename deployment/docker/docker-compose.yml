@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  tinycti:
+    build: 
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    container_name: tinycti
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - tinycti_data:/opt/tinycti/iocs
+      - tinycti_ngfw:/opt/tinycti/ngfw
+      - tinycti_logs:/opt/tinycti/logs
+      - ./config.yaml:/opt/tinycti/config.yaml:ro
+      - ./ip_whitelist.yaml:/opt/tinycti/ip_whitelist.yaml:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TINYCTI_LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tinycti_network
+
+  # Optional: API-only service for scaling
+  tinycti-api:
+    build: 
+      context: ../..
+      dockerfile: deployment/docker/Dockerfile
+    container_name: tinycti-api
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    volumes:
+      - tinycti_data:/opt/tinycti/iocs:ro
+      - tinycti_ngfw:/opt/tinycti/ngfw:ro
+      - tinycti_logs:/opt/tinycti/logs
+      - ./config.yaml:/opt/tinycti/config.yaml:ro
+      - ./ip_whitelist.yaml:/opt/tinycti/ip_whitelist.yaml:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TINYCTI_LOG_LEVEL=INFO
+    command: ["python", "tinycti.py", "--api", "--api-host", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tinycti_network
+    profiles:
+      - api-only
+
+volumes:
+  tinycti_data:
+    driver: local
+  tinycti_ngfw:
+    driver: local
+  tinycti_logs:
+    driver: local
+
+networks:
+  tinycti_network:
+    driver: bridge

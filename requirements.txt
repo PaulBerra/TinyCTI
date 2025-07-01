@@ -22,6 +22,12 @@ gunicorn>=20.1.0
 cryptography>=3.4.0  # For secure API keys storage
 redis>=4.0.0         # Optional: For advanced caching
 psutil>=5.8.0        # System monitoring
+bcrypt>=4.0.1        # Password hashing
+flask-limiter>=3.5.0 # Rate limiting
+pyjwt>=2.8.0         # JWT tokens
+python3-saml>=1.15.0 # SAML authentication
+requests-oauthlib>=1.3.1 # OAuth/OpenID
+python-dateutil>=2.8.2  # Date parsing
 
 # Development and testing
 pytest>=6.2.0       # Testing framework
@@ -31,4 +37,15 @@ mypy>=0.910          # Type checking
 
 # Production deployment
 supervisor>=4.2.0    # Process management
-nginx                # Reverse proxy (system package)
+
+pyyaml
+requests
+feedparser 
+iocextract 
+stix2 
+taxii2-client 
+cerberus 
+flask
+flask_limiter
+bcrypt
+pyjwt
