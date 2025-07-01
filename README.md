@@ -2123,7 +2123,7 @@ SOFTWARE.
 - **Documentation**: [GitHub Wiki](https://github.com/your-org/tinycti/wiki)
 - **Issues**: [GitHub Issues](https://github.com/your-org/tinycti/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/your-org/tinycti/discussions)
-- **📧 Email**: paul.berra.pro@gmail.com
+- **Email**: paul.berra.pro@gmail.com
 
 ###  **Contributing**
 
@@ -2145,7 +2145,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ---
 
-# 🇫🇷 Français - Framework Modulaire TinyCTI
+# Français - Framework Modulaire TinyCTI
 
 ##  Aperçu
 
