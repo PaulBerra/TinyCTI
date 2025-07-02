@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 TinyCTI - Framework modulaire léger de collecte et publication d'IOCs
-Architecture respectant le cahier des charges technique
 """
 
 from __future__ import annotations
